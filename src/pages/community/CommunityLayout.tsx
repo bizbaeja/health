@@ -32,7 +32,7 @@ export function CommunityLayout({ header, actions, children }: CommunityLayoutPr
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-brand/20 blur-[200px] sm:h-[560px] sm:w-[560px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_60%)] opacity-80" />
 
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 pb-safe pt-safe lg:px-10">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 pb-safe pt-safe sm:pt-[6rem] lg:px-10">
         <header className="flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Link to="/" className="inline-flex items-center gap-3 text-sm uppercase tracking-[0.35rem] text-slate-400 hover:text-white">

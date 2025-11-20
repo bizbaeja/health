@@ -351,6 +351,12 @@ function Header({ displayName, onSignOut }: HeaderProps) {
         </Link>
       </nav>
       <div className="flex items-center gap-3">
+        <Link
+          to="/community"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-slate-300 transition hover:border-white/30 hover:text-white"
+        >
+          커뮤니티
+        </Link>
         <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-slate-400 lg:flex">
           {displayName}
         </div>

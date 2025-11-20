@@ -150,3 +150,156 @@ create policy "challenge_settings_update_own"
     using (auth.uid() = user_id)
     with check (auth.uid() = user_id);
 
+-- 커뮤니티: 게시글, 좋아요, 댓글
+create table if not exists public.posts (
+    id bigserial primary key,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    category text not null check (category in ('log_share', 'tip', 'qna', 'free')),
+    title text not null,
+    content text not null,
+    media_urls jsonb not null default '[]'::jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists posts_user_id_idx on public.posts (user_id);
+create index if not exists posts_category_idx on public.posts (category);
+create index if not exists posts_created_at_idx on public.posts (created_at desc);
+
+create trigger handle_posts_updated_at
+    before update on public.posts
+    for each row
+    execute procedure moddatetime (updated_at);
+
+alter table public.posts enable row level security;
+
+create policy "posts_select_authenticated"
+    on public.posts for select
+    using (auth.role() = 'authenticated');
+
+create policy "posts_insert_own"
+    on public.posts for insert
+    with check (auth.uid() = user_id);
+
+create policy "posts_update_own"
+    on public.posts for update
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+create policy "posts_delete_own"
+    on public.posts for delete
+    using (auth.uid() = user_id);
+
+create table if not exists public.post_likes (
+    id bigserial primary key,
+    post_id bigint not null references public.posts (id) on delete cascade,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    constraint post_likes_unique unique (post_id, user_id)
+);
+
+create index if not exists post_likes_post_id_idx on public.post_likes (post_id);
+create index if not exists post_likes_user_id_idx on public.post_likes (user_id);
+
+alter table public.post_likes enable row level security;
+
+create policy "post_likes_select_authenticated"
+    on public.post_likes for select
+    using (auth.role() = 'authenticated');
+
+create policy "post_likes_insert_own"
+    on public.post_likes for insert
+    with check (auth.uid() = user_id);
+
+create policy "post_likes_delete_own"
+    on public.post_likes for delete
+    using (auth.uid() = user_id);
+
+create table if not exists public.comments (
+    id bigserial primary key,
+    post_id bigint not null references public.posts (id) on delete cascade,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    parent_id bigint references public.comments (id) on delete cascade,
+    content text not null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists comments_post_id_idx on public.comments (post_id);
+create index if not exists comments_user_id_idx on public.comments (user_id);
+create index if not exists comments_parent_id_idx on public.comments (parent_id);
+
+create trigger handle_comments_updated_at
+    before update on public.comments
+    for each row
+    execute procedure moddatetime (updated_at);
+
+alter table public.comments enable row level security;
+
+create policy "comments_select_authenticated"
+    on public.comments for select
+    using (auth.role() = 'authenticated');
+
+create policy "comments_insert_own"
+    on public.comments for insert
+    with check (auth.uid() = user_id);
+
+create policy "comments_update_own"
+    on public.comments for update
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+create policy "comments_delete_own"
+    on public.comments for delete
+    using (auth.uid() = user_id);
+
+create table if not exists public.comment_likes (
+    id bigserial primary key,
+    comment_id bigint not null references public.comments (id) on delete cascade,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    constraint comment_likes_unique unique (comment_id, user_id)
+);
+
+create index if not exists comment_likes_comment_id_idx on public.comment_likes (comment_id);
+create index if not exists comment_likes_user_id_idx on public.comment_likes (user_id);
+
+alter table public.comment_likes enable row level security;
+
+create policy "comment_likes_select_authenticated"
+    on public.comment_likes for select
+    using (auth.role() = 'authenticated');
+
+create policy "comment_likes_insert_own"
+    on public.comment_likes for insert
+    with check (auth.uid() = user_id);
+
+create policy "comment_likes_delete_own"
+    on public.comment_likes for delete
+    using (auth.uid() = user_id);
+
+-- 커뮤니티 media storage 정책
+create policy "community_media_select_own"
+    on storage.objects for select
+    using (
+        bucket_id = 'community-media'
+        and auth.role() = 'authenticated'
+        and split_part(name, '/', 1) = auth.uid()::text
+    );
+
+create policy "community_media_insert_own"
+    on storage.objects for insert
+    with check (
+        bucket_id = 'community-media'
+        and auth.role() = 'authenticated'
+        and split_part(name, '/', 1) = auth.uid()::text
+    );
+
+create policy "community_media_delete_own"
+    on storage.objects for delete
+    using (
+        bucket_id = 'community-media'
+        and auth.role() = 'authenticated'
+        and split_part(name, '/', 1) = auth.uid()::text
+    );
+

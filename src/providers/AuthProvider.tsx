@@ -69,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('[AuthProvider] session fetch error', error)
+          await supabase.auth.signOut()
+          setSession(null)
+          setProfile(null)
           return
         }
 
@@ -79,6 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('[AuthProvider] unexpected session error', error)
+        await supabase.auth.signOut()
+        setSession(null)
+        setProfile(null)
       } finally {
         if (mounted) {
           setLoading(false)
@@ -100,6 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('[AuthProvider] onAuthStateChange error', error)
+        await supabase.auth.signOut()
+        setSession(null)
+        setProfile(null)
       } finally {
         setLoading(false)
       }
@@ -112,8 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile])
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut()
-    setProfile(null)
+    try {
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('[AuthProvider] signOut error', error)
+    } finally {
+      setSession(null)
+      setProfile(null)
+      setLoading(false)
+    }
   }, [])
 
   const value = useMemo(

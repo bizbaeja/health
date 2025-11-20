@@ -181,7 +181,7 @@ function DashboardPage() {
         <Header displayName={profile?.full_name ?? '챌린저'} onSignOut={signOut} />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
           <div className="grid w-full max-w-6xl gap-12  lg:gap-14">
-    
+            
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}
@@ -779,13 +779,13 @@ function WeeklyLogBoard({
           </form>
         </div>
 
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <div className="flex items-center justify-between">
             <h4 className="text-sm uppercase tracking-[0.35rem] text-slate-400">Recent Logs</h4>
             <span className="text-xs text-slate-500">{logs.length} entries</span>
           </div>
 
-          <div className="mt-4 flex max-h-[420px] flex-col gap-4 overflow-y-auto pr-2">
+        <div className="mt-4 flex max-h-[560px] flex-col gap-4 overflow-y-auto pr-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-12 text-sm text-slate-500">기록을 불러오는 중...</div>
             ) : logs.length === 0 ? (

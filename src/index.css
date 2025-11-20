@@ -30,6 +30,14 @@
     @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-glow;
   }
 
+  .pt-safe {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 2.5rem);
+  }
+
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
+  }
+
   .shimmer {
     background: linear-gradient(
       110deg,

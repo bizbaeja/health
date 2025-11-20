@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { useAuth } from '@/providers/AuthProvider'
 import { useCreateWeeklyLog, useWeeklyLogs, type WeeklyLogInput, type WeeklyLogRecord } from '@/hooks/useWeeklyLogs'
+import { useChallengeSettings, useUpsertChallengeSettings } from '@/hooks/useChallengeSettings'
 
 const WEEKS_IN_CHALLENGE = 4
 
@@ -22,24 +23,93 @@ function DashboardPage() {
 
   const { data: weeklyLogs, isLoading: weeklyLogsLoading } = useWeeklyLogs(userId)
   const createLogMutation = useCreateWeeklyLog(userId)
+  const { data: challengeSettings, isLoading: challengeSettingsLoading } = useChallengeSettings(userId)
+  const upsertChallengeSettingsMutation = useUpsertChallengeSettings(userId)
 
   const [formError, setFormError] = useState<string | null>(null)
   const [formResetKey, setFormResetKey] = useState(0)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => new Date())
 
   const weeklyLogsData = weeklyLogs ?? []
   const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const hasThisWeekLog = weeklyLogsData.some((log) => log.weekStart === currentWeekStart)
 
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNow(new Date())
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
   const completedWeeksCount = weeklyLogsData.length
-  const progress = WEEKS_IN_CHALLENGE > 0 ? Math.min(completedWeeksCount / WEEKS_IN_CHALLENGE, 1) : 0
-  const progressDegrees = Math.floor(progress * 360)
-  const remainingDays = Math.max(0, Math.round((WEEKS_IN_CHALLENGE - completedWeeksCount) * 7))
+  const weeklyProgress = WEEKS_IN_CHALLENGE > 0 ? Math.min(completedWeeksCount / WEEKS_IN_CHALLENGE, 1) : 0
+
+  const startAt = challengeSettings?.startAt ? parseISO(challengeSettings.startAt) : null
+  const endAt = challengeSettings?.endAt ? parseISO(challengeSettings.endAt) : null
+
+  const countdown = useMemo(() => {
+    if (!startAt || !endAt) {
+      return null
+    }
+
+    const startTime = startAt.getTime()
+    const endTime = endAt.getTime()
+    const nowTime = now.getTime()
+    const totalMs = Math.max(endTime - startTime, 0)
+
+    if (totalMs === 0) {
+      return {
+        totalMs,
+        remainingMs: 0,
+        elapsedMs: 0,
+        percent: 1,
+        isComplete: true,
+      }
+    }
+
+    const elapsedMs = Math.min(Math.max(nowTime - startTime, 0), totalMs)
+    const remainingMs = Math.max(endTime - nowTime, 0)
+    const percent = elapsedMs / totalMs
+
+    return {
+      totalMs,
+      elapsedMs,
+      remainingMs,
+      percent,
+      isComplete: remainingMs <= 0,
+    }
+  }, [endAt, now, startAt])
+
+  const timeProgress = countdown?.percent ?? weeklyProgress
+  const progressDegrees = Math.floor(timeProgress * 360)
 
   const startBodyFat = profile?.body_fat_percentage ?? null
   const latestBodyFat = weeklyLogsData.find((log) => log.bodyFatPercentage != null)?.bodyFatPercentage ?? null
   const bodyFatChange =
     startBodyFat != null && latestBodyFat != null ? ((startBodyFat - latestBodyFat) / startBodyFat) * 100 : null
-  const warningsCount = 0
+
+  const remainingLabel = useMemo(() => {
+    if (!countdown) {
+      return '종료일을 설정하세요.'
+    }
+
+    if (countdown.isComplete) {
+      return '챌린지가 종료되었습니다.'
+    }
+
+    return `종료까지 ${formatRemainingLong(countdown.remainingMs)}`
+  }, [countdown])
+
+  const timeValueLabel = useMemo(() => {
+    if (!countdown) {
+      return '--'
+    }
+    if (countdown.isComplete) {
+      return '완료'
+    }
+    return formatRemainingShort(countdown.remainingMs)
+  }, [countdown])
 
   const scoreboard = useMemo(
     () => [
@@ -62,9 +132,9 @@ function DashboardPage() {
         trend: hasThisWeekLog ? '이번 주 인증 완료' : '이번 주 인증 필요',
       },
       {
-        label: '경고',
-        value: warningsCount.toString(),
-        trend: warningsCount > 0 ? '경고를 확인하세요' : '미참여 경고 없음',
+        label: '남은 시간',
+        value: timeValueLabel,
+        trend: remainingLabel,
       },
       {
         label: '여성 가산점',
@@ -72,7 +142,7 @@ function DashboardPage() {
         trend: profile?.gender === 'female' ? '여성 참가자 가산점 적용' : '핸디캡 없음',
       },
     ],
-    [bodyFatChange, completedWeeksCount, hasThisWeekLog, latestBodyFat, profile?.gender, startBodyFat, warningsCount],
+    [bodyFatChange, completedWeeksCount, hasThisWeekLog, latestBodyFat, profile?.gender, remainingLabel, startBodyFat, timeValueLabel],
   )
 
   const handleCreateLog = async (input: WeeklyLogInput) => {
@@ -89,6 +159,19 @@ function DashboardPage() {
     }
   }
 
+  const handleSaveSettings = async (values: { startAt: string; endAt: string }) => {
+    setSettingsError(null)
+    try {
+      await upsertChallengeSettingsMutation.mutateAsync(values)
+    } catch (error) {
+      if (error instanceof Error) {
+        setSettingsError(error.message)
+      } else {
+        setSettingsError('챌린지 기간 저장에 실패했습니다.')
+      }
+    }
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-night text-slate-100">
       <DecorativeBackground />
@@ -96,15 +179,22 @@ function DashboardPage() {
       <div className="relative z-10 flex min-h-screen flex-col">
         <Header displayName={profile?.full_name ?? '챌린저'} onSignOut={signOut} />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
-          <div className="grid w-full max-w-6xl gap-12 ] lg:gap-14">
-           
+          <div className="grid w-full max-w-6xl gap-12  lg:gap-14">
+     
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}
-                remainingDays={remainingDays}
                 completedWeeks={completedWeeksCount}
                 weeksInChallenge={WEEKS_IN_CHALLENGE}
                 scoreboard={scoreboard}
+                countdown={countdown}
+                endAt={endAt}
+              />
+              <ChallengeSettingsCard
+                isLoading={challengeSettingsLoading || upsertChallengeSettingsMutation.isPending}
+                settings={challengeSettings}
+                onSave={handleSaveSettings}
+                errorMessage={settingsError}
               />
               <WeeklyTrendCard logs={weeklyLogsData} isLoading={weeklyLogsLoading} startBodyFat={startBodyFat} />
               <WeeklyLogBoard
@@ -123,6 +213,116 @@ function DashboardPage() {
         <Footer />
       </div>
     </div>
+  )
+}
+
+type ChallengeSettingsCardProps = {
+  isLoading: boolean
+  settings: { startAt: string; endAt: string } | null | undefined
+  onSave: (values: { startAt: string; endAt: string }) => Promise<void>
+  errorMessage: string | null
+}
+
+function ChallengeSettingsCard({ isLoading, settings, onSave, errorMessage }: ChallengeSettingsCardProps) {
+  const [startValue, setStartValue] = useState('')
+  const [endValue, setEndValue] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setStartValue(settings?.startAt ? toDateTimeLocalValue(settings.startAt) : '')
+  }, [settings?.startAt])
+
+  useEffect(() => {
+    setEndValue(settings?.endAt ? toDateTimeLocalValue(settings.endAt) : '')
+  }, [settings?.endAt])
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setLocalError(null)
+
+    if (!startValue || !endValue) {
+      setLocalError('시작 시각과 종료 시각을 모두 입력해주세요.')
+      return
+    }
+
+    const startDate = new Date(startValue)
+    const endDate = new Date(endValue)
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      setLocalError('유효한 날짜와 시간을 입력해주세요.')
+      return
+    }
+
+    if (startDate >= endDate) {
+      setLocalError('종료 시각은 시작 시각 이후여야 합니다.')
+      return
+    }
+
+    await onSave({
+      startAt: startDate.toISOString(),
+      endAt: endDate.toISOString(),
+    })
+  }
+
+  const statusLabel = settings ? '설정됨' : '미설정'
+
+  return (
+    <section className="glass rounded-[2.5rem] border border-white/10 p-8 shadow-2xl shadow-black/30">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="font-display text-xl text-white">챌린지 타임라인 설정</h3>
+          <p className="text-sm text-slate-400">전체 챌린지 기간을 설정하면 실시간 타이머가 활성화됩니다.</p>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1 text-xs ${
+            settings ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-200' : 'border-amber-300/50 bg-amber-300/10 text-amber-200'
+          }`}
+        >
+          {isLoading ? '저장 중...' : statusLabel}
+        </span>
+      </div>
+
+      <form className="mt-6 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
+        <label className="flex flex-col gap-2 text-sm text-slate-300">
+          시작 시각
+          <input
+            type="datetime-local"
+            value={startValue}
+            onChange={(event) => setStartValue(event.target.value)}
+            required
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm text-slate-300">
+          종료 시각
+          <input
+            type="datetime-local"
+            value={endValue}
+            onChange={(event) => setEndValue(event.target.value)}
+            required
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+          />
+        </label>
+
+        <div className="sm:col-span-2 text-xs text-slate-500">
+          <p>• 종료 시각을 지나면 타이머가 “완료” 상태로 표시됩니다.</p>
+          <p>• 시작 시각을 과거로 설정하면 이미 경과한 시간까지 함께 계산됩니다.</p>
+        </div>
+
+        {(localError || errorMessage) && <p className="sm:col-span-2 text-sm text-rose-300">{localError ?? errorMessage}</p>}
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="sm:col-span-2 glass relative overflow-hidden rounded-2xl bg-brand/80 px-6 py-3 text-sm font-semibold uppercase tracking-[0.35rem] text-brand-foreground shadow-brand/30 transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 hover:opacity-100">
+            <span className="shimmer absolute inset-0" />
+          </span>
+          {isLoading ? '저장 중...' : '챌린지 기간 저장'}
+        </button>
+      </form>
+    </section>
   )
 }
 
@@ -207,21 +407,39 @@ function Hero() {
   )
 }
 
+type CountdownInfo = {
+  totalMs: number
+  elapsedMs: number
+  remainingMs: number
+  percent: number
+  isComplete: boolean
+}
+
 type MetricPanelProps = {
   progressDegrees: number
-  remainingDays: number
   completedWeeks: number
   weeksInChallenge: number
   scoreboard: { label: string; value: string; trend: string }[]
+  countdown: CountdownInfo | null
+  endAt: Date | null
 }
 
 function MetricPanel({
   progressDegrees,
-  remainingDays,
   completedWeeks,
   weeksInChallenge,
   scoreboard,
+  countdown,
+  endAt,
 }: MetricPanelProps) {
+  const remainingDisplay = countdown
+    ? countdown.isComplete
+      ? '완료'
+      : formatRemainingShort(countdown.remainingMs)
+    : '미설정'
+
+  const endLabel = endAt ? format(endAt, 'yyyy.MM.dd HH:mm') : '종료일을 설정하세요.'
+
   return (
     <aside className="glass relative flex flex-col gap-6 overflow-hidden rounded-[2.5rem] border-white/10 p-8 shadow-2xl shadow-black/40">
       <div className="pointer-events-none absolute -top-24 right-1/2 h-64 w-64 translate-x-1/2 rounded-full bg-brand/30 blur-3xl" />
@@ -249,7 +467,7 @@ function MetricPanel({
           <div className="relative flex h-32 w-32 items-center justify-center rounded-full border border-white/10 bg-night/70 text-center">
             <div className="flex flex-col items-center gap-1 text-sm uppercase tracking-[0.35rem] text-slate-400">
               <span className="text-xs tracking-[0.45rem] text-slate-500">Remaining</span>
-              <span className="text-3xl font-semibold text-white">{remainingDays}일</span>
+              <span className="text-xl font-semibold text-white">{remainingDisplay}</span>
             </div>
           </div>
         </div>
@@ -269,6 +487,13 @@ function MetricPanel({
             <span className="text-2xl font-semibold text-white">{item.value}</span>
           </div>
         ))}
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-400">
+        <div className="flex items-center justify-between">
+          <span>종료 예정일</span>
+          <span className="text-slate-300">{endLabel}</span>
+        </div>
       </div>
     </aside>
   )
@@ -635,6 +860,39 @@ function DecorativeBackground() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_60%)] opacity-80" />
     </>
   )
+}
+
+function formatRemainingShort(ms: number) {
+  const { days, hours, minutes, seconds } = getDurationParts(ms)
+  const time = `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`
+  return days > 0 ? `${days}일 ${time}` : time
+}
+
+function formatRemainingLong(ms: number) {
+  const { days, hours, minutes } = getDurationParts(ms)
+  const parts: string[] = []
+  if (days > 0) parts.push(`${days}일`)
+  if (hours > 0) parts.push(`${hours}시간`)
+  if (minutes > 0) parts.push(`${minutes}분`)
+  if (parts.length === 0) parts.push('1분 미만')
+  return parts.join(' ')
+}
+
+function toDateTimeLocalValue(iso: string) {
+  return format(parseISO(iso), "yyyy-MM-dd'T'HH:mm")
+}
+
+function getDurationParts(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return { days, hours, minutes, seconds }
+}
+
+function pad2(value: number) {
+  return value.toString().padStart(2, '0')
 }
 
 export default DashboardPage

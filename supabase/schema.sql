@@ -119,3 +119,34 @@ create policy "weekly_logs_storage_delete_own"
         and split_part(name, '/', 1) = auth.uid()::text
     );
 
+-- 챌린지 설정: 사용자별 시작/종료 시각 저장
+create table if not exists public.challenge_settings (
+    id bigserial primary key,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    start_at timestamptz not null,
+    end_at timestamptz not null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint challenge_settings_unique_user unique (user_id)
+);
+
+create trigger handle_challenge_settings_updated_at
+    before update on public.challenge_settings
+    for each row
+    execute procedure moddatetime (updated_at);
+
+alter table public.challenge_settings enable row level security;
+
+create policy "challenge_settings_select_own"
+    on public.challenge_settings for select
+    using (auth.uid() = user_id);
+
+create policy "challenge_settings_upsert_own"
+    on public.challenge_settings for insert
+    with check (auth.uid() = user_id);
+
+create policy "challenge_settings_update_own"
+    on public.challenge_settings for update
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+

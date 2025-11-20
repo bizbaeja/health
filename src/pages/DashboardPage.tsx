@@ -1,0 +1,641 @@
+import type { ChangeEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { format, parseISO, startOfWeek } from 'date-fns'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { useAuth } from '@/providers/AuthProvider'
+import { useCreateWeeklyLog, useWeeklyLogs, type WeeklyLogInput, type WeeklyLogRecord } from '@/hooks/useWeeklyLogs'
+
+const WEEKS_IN_CHALLENGE = 4
+
+function DashboardPage() {
+  const { profile, user, signOut } = useAuth()
+  const userId = user?.id ?? null
+
+  const { data: weeklyLogs, isLoading: weeklyLogsLoading } = useWeeklyLogs(userId)
+  const createLogMutation = useCreateWeeklyLog(userId)
+
+  const [formError, setFormError] = useState<string | null>(null)
+  const [formResetKey, setFormResetKey] = useState(0)
+
+  const weeklyLogsData = weeklyLogs ?? []
+  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const hasThisWeekLog = weeklyLogsData.some((log) => log.weekStart === currentWeekStart)
+
+  const completedWeeksCount = weeklyLogsData.length
+  const progress = WEEKS_IN_CHALLENGE > 0 ? Math.min(completedWeeksCount / WEEKS_IN_CHALLENGE, 1) : 0
+  const progressDegrees = Math.floor(progress * 360)
+  const remainingDays = Math.max(0, Math.round((WEEKS_IN_CHALLENGE - completedWeeksCount) * 7))
+
+  const startBodyFat = profile?.body_fat_percentage ?? null
+  const latestBodyFat = weeklyLogsData.find((log) => log.bodyFatPercentage != null)?.bodyFatPercentage ?? null
+  const bodyFatChange =
+    startBodyFat != null && latestBodyFat != null ? ((startBodyFat - latestBodyFat) / startBodyFat) * 100 : null
+  const warningsCount = 0
+
+  const scoreboard = useMemo(
+    () => [
+      {
+        label: '체지방률 변화율',
+        value:
+          bodyFatChange != null
+            ? `${bodyFatChange >= 0 ? '+' : ''}${bodyFatChange.toFixed(1)}%`
+            : startBodyFat != null
+              ? '0%'
+              : '--',
+        trend:
+          startBodyFat != null && latestBodyFat != null
+            ? `시작 ${startBodyFat.toFixed(1)}% → 현재 ${latestBodyFat.toFixed(1)}%`
+            : '기록을 추가하면 추이가 표시됩니다.',
+      },
+      {
+        label: '주간 인증',
+        value: `${completedWeeksCount} / ${WEEKS_IN_CHALLENGE}`,
+        trend: hasThisWeekLog ? '이번 주 인증 완료' : '이번 주 인증 필요',
+      },
+      {
+        label: '경고',
+        value: warningsCount.toString(),
+        trend: warningsCount > 0 ? '경고를 확인하세요' : '미참여 경고 없음',
+      },
+      {
+        label: '여성 가산점',
+        value: profile?.gender === 'female' ? '+0.5%' : '0%',
+        trend: profile?.gender === 'female' ? '여성 참가자 가산점 적용' : '핸디캡 없음',
+      },
+    ],
+    [bodyFatChange, completedWeeksCount, hasThisWeekLog, latestBodyFat, profile?.gender, startBodyFat, warningsCount],
+  )
+
+  const handleCreateLog = async (input: WeeklyLogInput) => {
+    setFormError(null)
+    try {
+      await createLogMutation.mutateAsync(input)
+      setFormResetKey((prev) => prev + 1)
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message)
+      } else {
+        setFormError('주간 기록 저장에 실패했습니다.')
+      }
+    }
+  }
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-night text-slate-100">
+      <DecorativeBackground />
+
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <Header displayName={profile?.full_name ?? '챌린저'} onSignOut={signOut} />
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
+          <div className="grid w-full max-w-6xl gap-12 ] lg:gap-14">
+           
+            <div className="flex flex-col gap-8">
+              <MetricPanel
+                progressDegrees={progressDegrees}
+                remainingDays={remainingDays}
+                completedWeeks={completedWeeksCount}
+                weeksInChallenge={WEEKS_IN_CHALLENGE}
+                scoreboard={scoreboard}
+              />
+              <WeeklyTrendCard logs={weeklyLogsData} isLoading={weeklyLogsLoading} startBodyFat={startBodyFat} />
+              <WeeklyLogBoard
+                key={formResetKey}
+                logs={weeklyLogsData}
+                isLoading={weeklyLogsLoading}
+                hasThisWeekLog={hasThisWeekLog}
+                currentWeekStart={currentWeekStart}
+                onSubmit={handleCreateLog}
+                isSubmitting={createLogMutation.isPending}
+                errorMessage={formError}
+              />
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    </div>
+  )
+}
+
+type HeaderProps = {
+  displayName: string
+  onSignOut: () => Promise<void>
+}
+
+function Header({ displayName, onSignOut }: HeaderProps) {
+  return (
+    <header className="flex items-center justify-between px-6 py-6 lg:px-10">
+      <div className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.35rem] text-slate-300 transition-colors hover:border-white/30 hover:text-white">
+        <span className="block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+        LIVE
+      </div>
+      <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
+        <a href="#" className="transition hover:text-white">
+          프로그램 소개
+        </a>
+        <a href="#" className="transition hover:text-white">
+          점수 시스템
+        </a>
+        <a href="#" className="transition hover:text-white">
+          커뮤니티
+        </a>
+      </nav>
+      <div className="flex items-center gap-3">
+        <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-slate-400 lg:flex">
+          {displayName}
+        </div>
+        <button
+          className="relative overflow-hidden rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/90 transition hover:border-white/40 hover:text-white"
+          onClick={() => {
+            void onSignOut()
+          }}
+        >
+          <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 hover:opacity-100">
+            <span className="shimmer absolute inset-0 rounded-full opacity-80" />
+          </span>
+          로그아웃
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function Hero() {
+  return (
+    <section className="flex flex-col justify-center gap-8">
+      <div className="flex flex-col gap-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.35rem] text-slate-300">
+          2025 Diet Protocol
+        </div>
+        <h1 className="font-display text-4xl leading-[1.15] text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
+          당신의 한 달을 바꿀
+          <br />
+          하이엔드 다이어트 챌린지
+        </h1>
+        <p className="max-w-xl text-base text-slate-300 sm:text-lg">
+          인바디 기반의 정밀 측정, 주간 인증 미션, 체계적인 점수 시스템으로 공정하면서도 자극적인 다이어트 레이스. 지금 가입하고
+          개인 맞춤형 프로그램을 시작하세요.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[
+          { badge: '90점', title: '체지방률 변화율', description: '시작 대비 감량 퍼포먼스' },
+          { badge: '10점', title: '주간 출석', description: '끊김 없는 인증 루틴' },
+          { badge: '+0.5%', title: '성별 핸디캡', description: '여성 참가자 가산점' },
+        ].map((item) => (
+          <div key={item.title} className="glass relative overflow-hidden rounded-2xl px-5 py-6 shadow-2xl shadow-black/20">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            <div className="text-sm text-slate-400">{item.title}</div>
+            <div className="mt-3 text-2xl font-semibold text-white">{item.badge}</div>
+            <div className="mt-2 text-sm text-slate-400">{item.description}</div>
+            <div className="absolute -right-6 -top-6 h-16 w-16 rounded-full bg-brand/20 blur-xl" />
+          </div>
+        ))}
+      </div>
+
+    </section>
+  )
+}
+
+type MetricPanelProps = {
+  progressDegrees: number
+  remainingDays: number
+  completedWeeks: number
+  weeksInChallenge: number
+  scoreboard: { label: string; value: string; trend: string }[]
+}
+
+function MetricPanel({
+  progressDegrees,
+  remainingDays,
+  completedWeeks,
+  weeksInChallenge,
+  scoreboard,
+}: MetricPanelProps) {
+  return (
+    <aside className="glass relative flex flex-col gap-6 overflow-hidden rounded-[2.5rem] border-white/10 p-8 shadow-2xl shadow-black/40">
+      <div className="pointer-events-none absolute -top-24 right-1/2 h-64 w-64 translate-x-1/2 rounded-full bg-brand/30 blur-3xl" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl text-white">이번 달 챌린지</h2>
+          <p className="text-sm text-slate-400">Sandglass Progress</p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+          기록 {completedWeeks}/{weeksInChallenge}
+        </span>
+      </div>
+
+      <div className="relative flex items-center justify-center py-6">
+        <div className="relative flex h-64 w-64 items-center justify-center">
+          <div className="absolute inset-0 rounded-full border border-white/15" />
+          <div
+            className="absolute inset-3 rounded-full"
+            style={{
+              background: `conic-gradient(from 270deg, rgba(108, 99, 255, 0.85) 0deg, rgba(108, 99, 255, 0.85) ${progressDegrees}deg, rgba(255, 255, 255, 0.08) ${progressDegrees}deg, rgba(255, 255, 255, 0.08) 360deg)`,
+            }}
+          />
+          <div className="absolute inset-6 rounded-full bg-night/90 backdrop-blur-lg" />
+          <div className="absolute inset-10 rounded-[40%] border border-white/10 bg-gradient-to-b from-white/20 via-white/5 to-transparent shadow-inner" />
+          <div className="relative flex h-32 w-32 items-center justify-center rounded-full border border-white/10 bg-night/70 text-center">
+            <div className="flex flex-col items-center gap-1 text-sm uppercase tracking-[0.35rem] text-slate-400">
+              <span className="text-xs tracking-[0.45rem] text-slate-500">Remaining</span>
+              <span className="text-3xl font-semibold text-white">{remainingDays}일</span>
+            </div>
+          </div>
+        </div>
+        <div className="absolute inset-0 -z-10 animate-spin-reverse bg-gradient-to-r from-brand/20 via-transparent to-brand/20 blur-3xl" />
+      </div>
+
+      <div className="grid gap-4">
+        {scoreboard.map((item) => (
+          <div
+            key={item.label}
+            className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition hover:border-white/20"
+          >
+            <div>
+              <p className="text-sm text-slate-400">{item.label}</p>
+              <p className="mt-1 text-xs text-slate-500">{item.trend}</p>
+            </div>
+            <span className="text-2xl font-semibold text-white">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </aside>
+  )
+}
+
+type WeeklyTrendCardProps = {
+  logs: WeeklyLogRecord[]
+  isLoading: boolean
+  startBodyFat: number | null
+}
+
+function WeeklyTrendCard({ logs, isLoading, startBodyFat }: WeeklyTrendCardProps) {
+  const chartData = useMemo(() => {
+    const ascending = [...logs].sort((a, b) => (a.weekStart > b.weekStart ? 1 : -1))
+    return ascending
+      .filter((log) => log.bodyFatPercentage != null)
+      .map((log) => ({
+        week: format(parseISO(log.weekStart), 'MM월 dd일'),
+        bodyFat: log.bodyFatPercentage,
+      }))
+  }, [logs])
+
+  return (
+    <section className="glass rounded-[2.5rem] border border-white/10 p-8 shadow-2xl shadow-black/30">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-display text-xl text-white">체지방률 추이</h3>
+          <p className="text-sm text-slate-400">주간 기록 기반 변화 그래프</p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+          {chartData.length} Weeks Logged
+        </span>
+      </div>
+
+      <div className="mt-6 h-64">
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center text-sm text-slate-500">데이터를 불러오는 중...</div>
+        ) : chartData.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
+            <span>아직 기록된 체지방률 데이터가 없습니다.</span>
+            <span>주간 인증을 등록하면 추이가 표시돼요.</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="4 8" />
+              <XAxis dataKey="week" stroke="#94a3b8" tickLine={false} />
+              <YAxis
+                stroke="#94a3b8"
+                tickLine={false}
+                domain={['dataMin-1', 'dataMax+1']}
+                tickFormatter={(value) => `${value.toFixed(1)}%`}
+              />
+              {startBodyFat != null ? (
+                <ReferenceLine
+                  y={startBodyFat}
+                  stroke="#f97316"
+                  strokeDasharray="4 6"
+                  label={{ value: 'Start', position: 'insideTopRight', fill: '#f97316', fontSize: 12 }}
+                />
+              ) : null}
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(9,9,20,0.92)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '1rem',
+                }}
+                formatter={(value: number) => [`${value.toFixed(1)}%`, '체지방률']}
+                labelFormatter={(label) => label}
+              />
+              <Line
+                type="monotone"
+                dataKey="bodyFat"
+                stroke="#6C63FF"
+                strokeWidth={3}
+                dot={{ r: 4, strokeWidth: 2, stroke: '#ffffff', fill: '#6C63FF' }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </section>
+  )
+}
+
+type WeeklyLogBoardProps = {
+  logs: WeeklyLogRecord[]
+  isLoading: boolean
+  hasThisWeekLog: boolean
+  currentWeekStart: string
+  onSubmit: (input: WeeklyLogInput) => Promise<void>
+  isSubmitting: boolean
+  errorMessage: string | null
+}
+
+function WeeklyLogBoard({
+  logs,
+  isLoading,
+  hasThisWeekLog,
+  currentWeekStart,
+  onSubmit,
+  isSubmitting,
+  errorMessage,
+}: WeeklyLogBoardProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [weekStart, setWeekStart] = useState(currentWeekStart)
+  const [weight, setWeight] = useState('')
+  const [bodyFat, setBodyFat] = useState('')
+  const [notes, setNotes] = useState('')
+  const [showHint, setShowHint] = useState(true)
+
+  useEffect(() => {
+    setWeekStart(currentWeekStart)
+  }, [currentWeekStart])
+
+  useEffect(
+    () => () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    },
+    [previewUrl],
+  )
+
+  const logsWithDelta = useMemo(() => {
+    return logs.map((log, index) => {
+      const next = logs[index + 1]
+      let delta: number | null = null
+      if (log.bodyFatPercentage != null && next?.bodyFatPercentage != null) {
+        delta = log.bodyFatPercentage - next.bodyFatPercentage
+      }
+      return { ...log, deltaFromPrev: delta }
+    })
+  }, [logs])
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    setSelectedFile(file)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+    setPreviewUrl(file ? URL.createObjectURL(file) : null)
+  }
+
+  const resetForm = () => {
+    setSelectedFile(null)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+    setPreviewUrl(null)
+    setWeekStart(currentWeekStart)
+    setWeight('')
+    setBodyFat('')
+    setNotes('')
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const weightValue = weight ? Number.parseFloat(weight) : null
+    const bodyFatValue = bodyFat ? Number.parseFloat(bodyFat) : null
+
+    try {
+      await onSubmit({
+        weekStart,
+        weightKg: weightValue,
+        bodyFatPercentage: bodyFatValue,
+        notes,
+        photoFile: selectedFile,
+      })
+      resetForm()
+    } catch (error) {
+      console.error('[WeeklyLogBoard] submit error', error)
+    }
+  }
+
+  return (
+    <section className="glass rounded-[2.5rem] border border-white/10 p-8 shadow-2xl shadow-black/30">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-display text-xl text-white">주간 기록 게시판</h3>
+              <p className="text-sm text-slate-400">인증 사진과 체지방률 변화를 공유하세요.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowHint((prev) => !prev)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:border-white/30 hover:text-white"
+              >
+                {showHint ? '도움말 숨기기' : '도움말 보기'}
+              </button>
+              {hasThisWeekLog ? (
+                <span className="rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                  이번 주 완료
+                </span>
+              ) : (
+                <span className="rounded-full border border-amber-300/50 bg-amber-300/10 px-3 py-1 text-xs text-amber-200">
+                  이번 주 미완료
+                </span>
+              )}
+            </div>
+          </div>
+
+          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-slate-300">
+                주차 (월요일 기준)
+                <input
+                  type="date"
+                  value={weekStart}
+                  onChange={(event) => setWeekStart(event.target.value)}
+                  required
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-300">
+                체중 (kg)
+                <input
+                  value={weight}
+                  onChange={(event) => setWeight(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="예: 72.4"
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-300">
+                체지방률 (%)
+                <input
+                  value={bodyFat}
+                  onChange={(event) => setBodyFat(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="예: 18.5"
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-300">
+                인증 사진
+                <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-white/10 bg-white/5 p-4">
+                  <input type="file" accept="image/*" onChange={handleFileChange} />
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="Preview" className="h-32 w-full rounded-xl object-cover" />
+                  ) : (
+                    <p className="text-xs text-slate-500">인증 사진을 업로드하면 썸네일이 표시됩니다.</p>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            <label className="flex flex-col gap-2 text-sm text-slate-300">
+              메모
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                rows={3}
+                placeholder="이번 주 경험이나 느낀 점을 기록해보세요."
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+              />
+            </label>
+
+            {errorMessage ? <p className="text-sm text-rose-300">{errorMessage}</p> : null}
+
+            {showHint ? (
+              <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-400">
+                <p>• Supabase Storage의 `weekly-logs` 버킷은 private으로 유지하고, 사용자별 경로(UID/파일) 접근 정책을 설정해야 사진이 표시됩니다.</p>
+                <p>• 주별 1회 기록만 허용됩니다. 중복 제출 시 오류 메시지가 나타납니다.</p>
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="glass relative overflow-hidden rounded-2xl bg-brand/80 px-6 py-3 text-sm font-semibold uppercase tracking-[0.35rem] text-brand-foreground shadow-brand/30 transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 hover:opacity-100">
+                <span className="shimmer absolute inset-0" />
+              </span>
+              {isSubmitting ? '저장 중...' : hasThisWeekLog ? '추가 기록 저장' : '이번 주 기록 완료'}
+            </button>
+          </form>
+        </div>
+
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm uppercase tracking-[0.35rem] text-slate-400">Recent Logs</h4>
+            <span className="text-xs text-slate-500">{logs.length} entries</span>
+          </div>
+
+          <div className="mt-4 flex max-h-[420px] flex-col gap-4 overflow-y-auto pr-2">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12 text-sm text-slate-500">기록을 불러오는 중...</div>
+            ) : logs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-8 text-sm text-slate-500">
+                <span>등록된 주간 기록이 없습니다.</span>
+                <span>첫 기록을 작성해 챌린지를 시작해보세요!</span>
+              </div>
+            ) : (
+              logsWithDelta.map((log) => (
+                <article key={log.id} className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  {log.photoPublicUrl ? (
+                    <img src={log.photoPublicUrl} alt="주간 인증 사진" className="h-20 w-20 rounded-xl object-cover" />
+                  ) : (
+                    <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-slate-500">
+                      No Photo
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between text-sm text-slate-300">
+                      <span>{format(parseISO(log.weekStart), 'yyyy.MM.dd')}</span>
+                      <span className="text-xs text-slate-500">{format(parseISO(log.submittedAt), 'MM월 dd일 HH:mm')}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-xs uppercase tracking-[0.35rem] text-slate-400">
+                      {log.bodyFatPercentage != null ? (
+                        <span>
+                          체지방 {log.bodyFatPercentage.toFixed(1)}%
+                          {log.deltaFromPrev != null && log.deltaFromPrev !== 0
+                            ? ` (${log.deltaFromPrev > 0 ? '+' : ''}${log.deltaFromPrev.toFixed(1)}%)`
+                            : ''}
+                        </span>
+                      ) : (
+                        <span>체지방 데이터 없음</span>
+                      )}
+                      {log.weightKg != null ? <span>체중 {log.weightKg.toFixed(1)}kg</span> : null}
+                    </div>
+                    {log.notes ? <p className="text-sm text-slate-300">{log.notes}</p> : null}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 border-t border-white/10 px-6 py-6 text-xs text-slate-500 lg:px-0">
+      <span>ⓒ 2025 Diet Challenge Lab. All rights reserved.</span>
+      <div className="flex gap-4">
+        <a href="#" className="transition hover:text-white">
+          이용약관
+        </a>
+        <a href="#" className="transition hover:text-white">
+          개인정보처리방침
+        </a>
+        <a href="#" className="transition hover:text-white">
+          고객센터
+        </a>
+      </div>
+    </footer>
+  )
+}
+
+function DecorativeBackground() {
+  return (
+    <>
+      <div className="absolute left-1/2 top-1/2 h-[780px] w-[780px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/20 blur-[120px]" />
+      <div className="absolute -left-32 top-24 h-96 w-96 rounded-full bg-emerald-400/10 blur-[160px]" />
+      <div className="absolute -right-16 top-1/3 h-80 w-80 animate-float-slow rounded-full bg-accent/20 blur-[120px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_60%)] opacity-80" />
+    </>
+  )
+}
+
+export default DashboardPage
+

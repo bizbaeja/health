@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "radii": {
+    "sm": "calc(var(--radius) - 6px)",
+    "md": "calc(var(--radius) - 4px)",
+    "lg": "var(--radius)"
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils"
+  },
+  "tailwind": {
+    "config": "tailwind.config.js",
+    "css": "src/index.css",
+    "baseColor": "slate"
+  }
+}
+

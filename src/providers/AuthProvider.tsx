@@ -36,6 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const clearSession = useCallback(() => {
+    setSession(null)
+    setProfile(null)
+  }, [])
+
   const fetchProfile = useCallback(
     async (userId: string) => {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
@@ -69,9 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('[AuthProvider] session fetch error', error)
+          clearSession()
           await supabase.auth.signOut()
-          setSession(null)
-          setProfile(null)
           return
         }
 
@@ -79,12 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (initialSession?.user) {
           await fetchProfile(initialSession.user.id)
+        } else {
+          clearSession()
         }
       } catch (error) {
         console.error('[AuthProvider] unexpected session error', error)
+        clearSession()
         await supabase.auth.signOut()
-        setSession(null)
-        setProfile(null)
       } finally {
         if (mounted) {
           setLoading(false)
@@ -106,9 +111,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('[AuthProvider] onAuthStateChange error', error)
-        await supabase.auth.signOut()
-        setSession(null)
-        setProfile(null)
       } finally {
         setLoading(false)
       }
@@ -118,19 +120,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [fetchProfile])
+  }, [clearSession, fetchProfile])
 
   const signOut = useCallback(async () => {
+    setLoading(true)
     try {
       await supabase.auth.signOut()
     } catch (error) {
       console.error('[AuthProvider] signOut error', error)
     } finally {
-      setSession(null)
-      setProfile(null)
+      clearSession()
       setLoading(false)
     }
-  }, [])
+  }, [clearSession])
 
   const value = useMemo(
     () => ({

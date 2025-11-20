@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { format, parseISO, startOfWeek } from 'date-fns'
 import {
   CartesianGrid,
@@ -180,7 +181,7 @@ function DashboardPage() {
         <Header displayName={profile?.full_name ?? '챌린저'} onSignOut={signOut} />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
           <div className="grid w-full max-w-6xl gap-12  lg:gap-14">
-     
+    
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}
@@ -345,9 +346,9 @@ function Header({ displayName, onSignOut }: HeaderProps) {
         <a href="#" className="transition hover:text-white">
           점수 시스템
         </a>
-        <a href="#" className="transition hover:text-white">
+        <Link to="/community" className="transition hover:text-white">
           커뮤니티
-        </a>
+        </Link>
       </nav>
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-slate-400 lg:flex">

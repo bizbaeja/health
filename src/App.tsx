@@ -2,6 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from '@/providers/AuthProvider'
 import DashboardPage from '@/pages/DashboardPage'
+import CommunityListPage from '@/pages/community/CommunityListPage.tsx'
+import CommunityNewPage from '@/pages/community/CommunityNewPage.tsx'
+import CommunityPostPage from '@/pages/community/CommunityPostPage.tsx'
 import AuthPage from '@/pages/AuthPage'
 import OnboardingPage from '@/pages/OnboardingPage'
 
@@ -25,6 +28,36 @@ function App() {
               <RequireAuth>
                 <RequireOnboardingComplete>
                   <DashboardPage />
+                </RequireOnboardingComplete>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/community"
+            element={
+              <RequireAuth>
+                <RequireOnboardingComplete>
+                  <CommunityListPage />
+                </RequireOnboardingComplete>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/community/new"
+            element={
+              <RequireAuth>
+                <RequireOnboardingComplete>
+                  <CommunityNewPage />
+                </RequireOnboardingComplete>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/community/:postId"
+            element={
+              <RequireAuth>
+                <RequireOnboardingComplete>
+                  <CommunityPostPage />
                 </RequireOnboardingComplete>
               </RequireAuth>
             }

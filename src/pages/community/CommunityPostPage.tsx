@@ -15,6 +15,7 @@ import {
   type CommentRecord,
 } from '@/hooks/useComments'
 import { cn } from '@/lib/utils'
+import { HeartIcon } from '@/components/icons/HeartIcon'
 
 function CommunityPostPage() {
   const { postId: postIdParam } = useParams<{ postId: string }>()
@@ -182,8 +183,11 @@ function CommunityPostPage() {
                       : 'border-white/10 bg-white/5 text-slate-400 hover:border-rose-400/40 hover:text-rose-200',
                     toggleLikeMutation.isPending && 'opacity-60',
                   )}
+                  aria-pressed={post.likedByUser}
                 >
-                  {post.likedByUser ? '좋아요 취소' : '좋아요'} ({post.likeCount})
+                  <span className="sr-only">{post.likedByUser ? '좋아요 취소' : '좋아요'}</span>
+                  <HeartIcon filled={post.likedByUser} />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.35rem]">{post.likeCount}</span>
                 </button>
                 <button
                   type="button"
@@ -383,8 +387,13 @@ function CommentItem({
                 : 'border-white/10 bg-white/5 text-slate-400 hover:border-rose-400/40 hover:text-rose-200',
               isLiking && likeTargetId === comment.id && 'opacity-60',
             )}
+            aria-pressed={comment.likedByUser}
           >
-            좋아요 {comment.likeCount > 0 ? `(${comment.likeCount})` : ''}
+            <span className="sr-only">{comment.likedByUser ? '좋아요 취소' : '좋아요'}</span>
+            <HeartIcon filled={comment.likedByUser} className="h-3.5 w-3.5" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.35rem]">
+              {comment.likeCount}
+            </span>
           </button>
         </footer>
       </div>

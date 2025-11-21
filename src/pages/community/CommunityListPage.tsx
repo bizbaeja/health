@@ -5,6 +5,7 @@ import { CommunityLayout } from '@/pages/community/CommunityLayout'
 import { useAuth } from '@/providers/AuthProvider'
 import { usePosts, useTogglePostLike, type PostCategory, type PostSummary } from '@/hooks/useCommunityPosts'
 import { cn } from '@/lib/utils'
+import { HeartIcon } from '@/components/icons/HeartIcon'
 
 const categories: { value: PostCategory; label: string }[] = [
   { value: 'log_share', label: '인증 공유' },
@@ -171,8 +172,11 @@ function PostCard({ post, onToggleLike, likeLoading }: PostCardProps) {
             post.likedByUser ? 'border-rose-400 bg-rose-400/20 text-rose-200' : 'border-white/10 bg-white/5 text-slate-400 hover:border-rose-400/40 hover:text-rose-200',
             likeLoading && 'opacity-60',
           )}
+          aria-pressed={post.likedByUser}
         >
-          {post.likedByUser ? '좋아요 취소' : '좋아요'} ({post.likeCount})
+          <span className="sr-only">{post.likedByUser ? '좋아요 취소' : '좋아요'}</span>
+          <HeartIcon filled={post.likedByUser} />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.35rem]">{post.likeCount}</span>
         </button>
       </div>
     </article>

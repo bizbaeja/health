@@ -41,17 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
   }, [])
 
-  const fetchProfile = useCallback(
-    async (userId: string) => {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-      if (error) {
-        console.error('[AuthProvider] profile fetch error', error)
-        return
-      }
-      setProfile(data as Profile | null)
-    },
-    [setProfile],
-  )
+  const fetchProfile = useCallback(async (userId: string) => {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    if (error) {
+      console.error('[AuthProvider] profile fetch error', error)
+      setProfile(null)
+      return false
+    }
+    setProfile(data as Profile | null)
+    return true
+  }, [])
 
   const refreshProfile = useCallback(async () => {
     if (!session?.user) return
@@ -60,8 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    const guardTimeout = window.setTimeout(() => {
+      if (mounted) {
+        setLoading(false)
+      }
+    }, 5000)
 
     const getInitialSession = async () => {
+      setLoading(true)
       try {
         const {
           data: { session: initialSession },
@@ -79,13 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        setSession(initialSession)
-
-        if (initialSession?.user) {
-          await fetchProfile(initialSession.user.id)
-        } else {
+        if (!initialSession) {
           clearSession()
+          return
         }
+
+        setSession(initialSession)
+        await fetchProfile(initialSession.user.id)
       } catch (error) {
         console.error('[AuthProvider] unexpected session error', error)
         clearSession()
@@ -102,15 +107,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      setLoading(true)
       setSession(newSession)
       try {
         if (newSession?.user) {
           await fetchProfile(newSession.user.id)
         } else {
-          setProfile(null)
+          clearSession()
         }
       } catch (error) {
         console.error('[AuthProvider] onAuthStateChange error', error)
+        clearSession()
       } finally {
         setLoading(false)
       }
@@ -118,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false
+      window.clearTimeout(guardTimeout)
       subscription.unsubscribe()
     }
   }, [clearSession, fetchProfile])

@@ -180,8 +180,8 @@ function DashboardPage() {
       <div className="relative z-10 flex min-h-screen flex-col">
         <Header displayName={profile?.full_name ?? '챌린저'} onSignOut={signOut} />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
-          <div className="grid w-full max-w-6xl gap-12  lg:gap-14">
-            
+          <div className="grid w-full max-w-6xl gap-12 lg:gap-14">
+            {/* <Hero /> */}
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}
@@ -680,159 +680,161 @@ function WeeklyLogBoard({
 
   return (
     <section className="glass rounded-[2.5rem] border border-white/10 p-8 shadow-2xl shadow-black/30">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h3 className="font-display text-xl text-white">주간 기록 게시판</h3>
-              <p className="text-sm text-slate-400">인증 사진과 체지방률 변화를 공유하세요.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowHint((prev) => !prev)}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:border-white/30 hover:text-white"
-              >
-                {showHint ? '도움말 숨기기' : '도움말 보기'}
-              </button>
-              {hasThisWeekLog ? (
-                <span className="rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                  이번 주 완료
-                </span>
-              ) : (
-                <span className="rounded-full border border-amber-300/50 bg-amber-300/10 px-3 py-1 text-xs text-amber-200">
-                  이번 주 미완료
-                </span>
-              )}
-            </div>
+      {/* 입력 폼 영역 */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="font-display text-xl text-white">주간 기록 게시판</h3>
+            <p className="text-sm text-slate-400">인증 사진과 체지방률 변화를 공유하세요.</p>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowHint((prev) => !prev)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:border-white/30 hover:text-white"
+            >
+              {showHint ? '도움말 숨기기' : '도움말 보기'}
+            </button>
+            {hasThisWeekLog ? (
+              <span className="rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                이번 주 완료
+              </span>
+            ) : (
+              <span className="rounded-full border border-amber-300/50 bg-amber-300/10 px-3 py-1 text-xs text-amber-200">
+                이번 주 미완료
+              </span>
+            )}
+          </div>
+        </div>
 
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-300">
-                주차 (월요일 기준)
-                <input
-                  type="date"
-                  value={weekStart}
-                  onChange={(event) => setWeekStart(event.target.value)}
-                  required
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-300">
-                체중 (kg)
-                <input
-                  value={weight}
-                  onChange={(event) => setWeight(event.target.value)}
-                  inputMode="decimal"
-                  placeholder="예: 72.4"
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-300">
-                체지방률 (%)
-                <input
-                  value={bodyFat}
-                  onChange={(event) => setBodyFat(event.target.value)}
-                  inputMode="decimal"
-                  placeholder="예: 18.5"
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-300">
-                인증 사진
-                <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-white/10 bg-white/5 p-4">
-                  <input type="file" accept="image/*" onChange={handleFileChange} />
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="Preview" className="h-32 w-full rounded-xl object-cover" />
-                  ) : (
-                    <p className="text-xs text-slate-500">인증 사진을 업로드하면 썸네일이 표시됩니다.</p>
-                  )}
-                </div>
-              </label>
-            </div>
-
+        <form className="mt-2 grid gap-4" onSubmit={handleSubmit}>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-300">
-              메모
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                rows={3}
-                placeholder="이번 주 경험이나 느낀 점을 기록해보세요."
+              주차 (월요일 기준)
+              <input
+                type="date"
+                value={weekStart}
+                onChange={(event) => setWeekStart(event.target.value)}
+                required
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
               />
             </label>
-
-            {errorMessage ? <p className="text-sm text-rose-300">{errorMessage}</p> : null}
-
-            {showHint ? (
-              <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-400">
-                <p>• Supabase Storage의 `weekly-logs` 버킷은 private으로 유지하고, 사용자별 경로(UID/파일) 접근 정책을 설정해야 사진이 표시됩니다.</p>
-                <p>• 주별 1회 기록만 허용됩니다. 중복 제출 시 오류 메시지가 나타납니다.</p>
+            <label className="flex flex-col gap-2 text-sm text-slate-300">
+              체중 (kg)
+              <input
+                value={weight}
+                onChange={(event) => setWeight(event.target.value)}
+                inputMode="decimal"
+                placeholder="예: 72.4"
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-300">
+              체지방률 (%)
+              <input
+                value={bodyFat}
+                onChange={(event) => setBodyFat(event.target.value)}
+                inputMode="decimal"
+                placeholder="예: 18.5"
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-300">
+              인증 사진
+              <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-white/10 bg-white/5 p-4">
+                <input type="file" accept="image/*" onChange={handleFileChange} />
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Preview" className="h-32 w-full rounded-xl object-cover" />
+                ) : (
+                  <p className="text-xs text-slate-500">인증 사진을 업로드하면 썸네일이 표시됩니다.</p>
+                )}
               </div>
-            ) : null}
+            </label>
+          </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="glass relative overflow-hidden rounded-2xl bg-brand/80 px-6 py-3 text-sm font-semibold uppercase tracking-[0.35rem] text-brand-foreground shadow-brand/30 transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 hover:opacity-100">
-                <span className="shimmer absolute inset-0" />
-              </span>
-              {isSubmitting ? '저장 중...' : hasThisWeekLog ? '추가 기록 저장' : '이번 주 기록 완료'}
-            </button>
-          </form>
+          <label className="flex flex-col gap-2 text-sm text-slate-300">
+            메모
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              rows={3}
+              placeholder="이번 주 경험이나 느낀 점을 기록해보세요."
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+            />
+          </label>
+
+          {errorMessage ? <p className="text-sm text-rose-300">{errorMessage}</p> : null}
+
+          {showHint ? (
+            <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-400">
+              <p>• Supabase Storage의 `weekly-logs` 버킷은 private으로 유지하고, 사용자별 경로(UID/파일) 접근 정책을 설정해야 사진이 표시됩니다.</p>
+              <p>• 주별 1회 기록만 허용됩니다. 중복 제출 시 오류 메시지가 나타납니다.</p>
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="glass relative overflow-hidden rounded-2xl bg-brand/80 px-6 py-3 text-sm font-semibold uppercase tracking-[0.35rem] text-brand-foreground shadow-brand/30 transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 hover:opacity-100">
+              <span className="shimmer absolute inset-0" />
+            </span>
+            {isSubmitting ? '저장 중...' : hasThisWeekLog ? '추가 기록 저장' : '이번 주 기록 완료'}
+          </button>
+        </form>
+      </div>
+
+      {/* 최근 기록 리스트 - 아래쪽 전체 너비 사용 */}
+      <div className="mt-10 border-t border-white/10 pt-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h4 className="text-sm uppercase tracking-[0.35rem] text-slate-400">Recent Logs</h4>
+          <span className="text-xs text-slate-500">{logs.length} entries</span>
         </div>
 
-      <div className="flex-1">
-        <div className="flex items-center justify-between">
-            <h4 className="text-sm uppercase tracking-[0.35rem] text-slate-400">Recent Logs</h4>
-            <span className="text-xs text-slate-500">{logs.length} entries</span>
-          </div>
-
-        <div className="mt-4 flex max-h-[560px] flex-col gap-4 overflow-y-auto pr-2">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12 text-sm text-slate-500">기록을 불러오는 중...</div>
-            ) : logs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-8 text-sm text-slate-500">
-                <span>등록된 주간 기록이 없습니다.</span>
-                <span>첫 기록을 작성해 챌린지를 시작해보세요!</span>
-              </div>
-            ) : (
-              logsWithDelta.map((log) => (
-                <article key={log.id} className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  {log.photoPublicUrl ? (
-                    <img src={log.photoPublicUrl} alt="주간 인증 사진" className="h-20 w-20 rounded-xl object-cover" />
-                  ) : (
-                    <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-slate-500">
-                      No Photo
-                    </div>
-                  )}
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between text-sm text-slate-300">
-                      <span>{format(parseISO(log.weekStart), 'yyyy.MM.dd')}</span>
-                      <span className="text-xs text-slate-500">{format(parseISO(log.submittedAt), 'MM월 dd일 HH:mm')}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-4 text-xs uppercase tracking-[0.35rem] text-slate-400">
-                      {log.bodyFatPercentage != null ? (
-                        <span>
-                          체지방 {log.bodyFatPercentage.toFixed(1)}%
-                          {log.deltaFromPrev != null && log.deltaFromPrev !== 0
-                            ? ` (${log.deltaFromPrev > 0 ? '+' : ''}${log.deltaFromPrev.toFixed(1)}%)`
-                            : ''}
-                        </span>
-                      ) : (
-                        <span>체지방 데이터 없음</span>
-                      )}
-                      {log.weightKg != null ? <span>체중 {log.weightKg.toFixed(1)}kg</span> : null}
-                    </div>
-                    {log.notes ? <p className="text-sm text-slate-300">{log.notes}</p> : null}
+        <div className="flex max-h-[560px] flex-col gap-4 overflow-y-auto pr-2">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 text-sm text-slate-500">기록을 불러오는 중...</div>
+          ) : logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-8 text-sm text-slate-500">
+              <span>등록된 주간 기록이 없습니다.</span>
+              <span>첫 기록을 작성해 챌린지를 시작해보세요!</span>
+            </div>
+          ) : (
+            logsWithDelta.map((log) => (
+              <article key={log.id} className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                {log.photoPublicUrl ? (
+                  <img src={log.photoPublicUrl} alt="주간 인증 사진" className="h-20 w-20 rounded-xl object-cover" />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-slate-500">
+                    No Photo
                   </div>
-                </article>
-              ))
-            )}
-          </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center justify-between text-sm text-slate-300">
+                    <span>{format(parseISO(log.weekStart), 'yyyy.MM.dd')}</span>
+                    <span className="text-xs text-slate-500">
+                      {format(parseISO(log.submittedAt), 'MM월 dd일 HH:mm')}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-xs uppercase tracking-[0.35rem] text-slate-400">
+                    {log.bodyFatPercentage != null ? (
+                      <span>
+                        체지방 {log.bodyFatPercentage.toFixed(1)}%
+                        {log.deltaFromPrev != null && log.deltaFromPrev !== 0
+                          ? ` (${log.deltaFromPrev > 0 ? '+' : ''}${log.deltaFromPrev.toFixed(1)}%)`
+                          : ''}
+                      </span>
+                    ) : (
+                      <span>체지방 데이터 없음</span>
+                    )}
+                    {log.weightKg != null ? <span>체중 {log.weightKg.toFixed(1)}kg</span> : null}
+                  </div>
+                  {log.notes ? <p className="text-sm text-slate-300">{log.notes}</p> : null}
+                </div>
+              </article>
+            ))
+          )}
         </div>
       </div>
     </section>

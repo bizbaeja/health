@@ -42,14 +42,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-    if (error) {
+    const { data, error, status } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+
+    if (error && status !== 406) {
       console.error('[AuthProvider] profile fetch error', error)
       setProfile(null)
-      return false
+      return null
     }
-    setProfile(data as Profile | null)
-    return true
+
+    if (!data) {
+      const { data: inserted, error: insertError } = await supabase
+        .from('profiles')
+        .insert({ id: userId })
+        .select('*')
+        .single()
+
+      if (insertError) {
+        console.error('[AuthProvider] profile auto-create error', insertError)
+        setProfile(null)
+        return null
+      }
+
+      setProfile(inserted as Profile)
+      return inserted as Profile
+    }
+
+    setProfile(data as Profile)
+    return data as Profile
   }, [])
 
   const refreshProfile = useCallback(async () => {

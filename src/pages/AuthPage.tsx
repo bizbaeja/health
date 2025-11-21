@@ -32,6 +32,28 @@ function AuthPage() {
     setInfo(null)
   }, [mode])
 
+  const handleGoogleSignIn = async () => {
+    setError(null)
+    setInfo(null)
+    setPending(true)
+
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      })
+
+      if (oauthError) {
+        setError(oauthError.message)
+      }
+    } finally {
+      // OAuth는 보통 즉시 리다이렉트되지만, 실패 시를 위해 pending 해제
+      setPending(false)
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
@@ -149,6 +171,24 @@ function AuthPage() {
                 <span className="shimmer absolute inset-0" />
               </span>
               {pending ? '처리 중...' : mode === 'sign-in' ? '로그인' : '회원가입'}
+            </button>
+
+            <div className="flex items-center gap-4 text-xs text-slate-500">
+              <div className="h-px flex-1 bg-white/10" />
+              <span>또는</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={pending}
+              className="flex items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 shadow-[0_0_40px_rgba(15,23,42,0.75)] transition hover:border-white/40 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
+                <span className="text-[11px] font-bold text-slate-900">G</span>
+              </span>
+              <span>Google 계정으로 계속하기</span>
             </button>
           </form>
 

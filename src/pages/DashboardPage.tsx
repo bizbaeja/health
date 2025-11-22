@@ -397,9 +397,9 @@ function Header({
         >
           점수 시스템
         </button>
-        <Link to="/community" className="transition hover:text-white">
+        {/* <Link to="/community" className="transition hover:text-white">
           커뮤니티
-        </Link>
+        </Link> */}
       </nav>
       <div className="flex items-center gap-3">
         <div className="relative">

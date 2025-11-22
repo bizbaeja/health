@@ -92,7 +92,8 @@ function OnboardingPage() {
 
     if (upsertError) {
       console.error('[Onboarding] profile upsert error', upsertError)
-      setError(upsertError.message)
+      // 온보딩 저장 실패 시 현재 온보딩 페이지에 머무르면서 에러만 표시
+      setError('온보딩 정보를 저장하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
       setPending(false)
       return
     }

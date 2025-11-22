@@ -32,6 +32,11 @@ function AuthPage() {
     setInfo(null)
   }, [mode])
 
+  const redirectBase =
+    import.meta.env.MODE === 'production'
+      ? 'https://health-project-dduru.netlify.app'
+      : window.location.origin
+
   const handleGoogleSignIn = async () => {
     setError(null)
     setInfo(null)
@@ -41,7 +46,7 @@ function AuthPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectBase,
         },
       })
 
@@ -74,7 +79,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/onboarding`,
+            emailRedirectTo: `${redirectBase}/onboarding`,
           },
         })
         if (signUpError) {

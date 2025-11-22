@@ -151,13 +151,17 @@ function CommunityPostPage() {
             {post.media.length > 0 ? (
               <section className="grid gap-4 sm:grid-cols-2">
                 {post.media.map(({ path, url }) => (
-                  <img
+                  <div
                     key={path}
-                    src={url ?? undefined}
-                    alt=""
-                    className="h-64 w-full rounded-3xl object-cover"
-                    loading="lazy"
-                  />
+                    className="flex max-h-[420px] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-black/40"
+                  >
+                    <img
+                      src={url ?? undefined}
+                      alt=""
+                      className="max-h-[420px] w-full object-contain"
+                      loading="lazy"
+                    />
+                  </div>
                 ))}
               </section>
             ) : null}

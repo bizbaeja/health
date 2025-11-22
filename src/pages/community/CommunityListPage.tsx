@@ -151,12 +151,14 @@ function PostCard({ post, onToggleLike, likeLoading }: PostCardProps) {
       </Link>
       {firstMedia ? (
         <Link to={`/community/${post.id}`}>
-          <img
-            src={firstMedia.url ?? undefined}
-            alt=""
-            className="h-48 w-full rounded-2xl object-cover"
-            loading="lazy"
-          />
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+            <img
+              src={firstMedia.url ?? undefined}
+              alt=""
+              className="max-h-80 w-full object-contain"
+              loading="lazy"
+            />
+          </div>
         </Link>
       ) : null}
       <div className="flex items-center justify-between border-t border-white/10 pt-4 text-xs uppercase tracking-[0.35rem] text-slate-500">

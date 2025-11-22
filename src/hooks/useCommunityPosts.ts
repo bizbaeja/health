@@ -75,7 +75,13 @@ async function fetchPosts({ userId, category }: FetchPostsOptions): Promise<Post
       )
 
       const likeCount = Array.isArray(post.post_likes) && post.post_likes.length > 0 ? post.post_likes[0].count ?? 0 : 0
-      const authorName = Array.isArray(post.author) && post.author.length > 0 ? post.author[0].full_name ?? null : null
+      const author =
+        post.author && !Array.isArray(post.author)
+          ? (post.author as { full_name?: string | null })
+          : Array.isArray(post.author) && post.author.length > 0
+            ? (post.author[0] as { full_name?: string | null })
+            : null
+      const authorName = author?.full_name ?? null
 
       return {
         id: post.id,
@@ -134,7 +140,13 @@ async function fetchPost(userId: string, postId: number): Promise<PostSummary | 
   )
 
   const likeCount = Array.isArray(data.post_likes) && data.post_likes.length > 0 ? data.post_likes[0].count ?? 0 : 0
-  const authorName = Array.isArray(data.author) && data.author.length > 0 ? data.author[0].full_name ?? null : null
+  const author =
+    data.author && !Array.isArray(data.author)
+      ? (data.author as { full_name?: string | null })
+      : Array.isArray(data.author) && data.author.length > 0
+        ? (data.author[0] as { full_name?: string | null })
+        : null
+  const authorName = author?.full_name ?? null
 
   return {
     id: data.id,

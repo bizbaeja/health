@@ -43,7 +43,7 @@ type CommentRow = {
   content: string
   created_at: string
   updated_at: string
-  author: { full_name: string | null }[] | null
+  author: { full_name: string | null } | { full_name: string | null }[] | null
   comment_likes: { count: number }[] | null
 }
 
@@ -102,8 +102,14 @@ async function fetchComments(postId: number, currentUserId: string): Promise<Com
     const parentId = row.parent_id != null ? Number(row.parent_id) : null
     const likeCount =
       Array.isArray(row.comment_likes) && row.comment_likes.length > 0 ? Number(row.comment_likes[0].count ?? 0) : 0
-    const authorName =
-      Array.isArray(row.author) && row.author.length > 0 ? row.author[0].full_name ?? null : null
+
+    const author =
+      row.author && !Array.isArray(row.author)
+        ? (row.author as { full_name: string | null })
+        : Array.isArray(row.author) && row.author.length > 0
+          ? (row.author[0] as { full_name: string | null })
+          : null
+    const authorName = author?.full_name ?? null
 
     const comment: CommentRecord = {
       id,

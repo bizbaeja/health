@@ -138,7 +138,7 @@ function CommunityPostPage() {
         ) : (
           <>
             <header className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-xs uppercase tracking-[0.35rem] text-brand-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-brand/60 bg-brand/20 px-3 py-1 text-xs uppercase tracking-[0.35rem] text-slate-50">
                 {categoryLabel(post.category)}
               </div>
               <h1 className="font-display text-3xl text-white sm:text-4xl">{post.title}</h1>

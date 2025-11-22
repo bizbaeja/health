@@ -199,8 +199,8 @@ function DashboardPage() {
           onNotificationClick={handleNotificationClick}
         />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
-          <div className="grid w-full max-w-6xl gap-12 lg:grid-cols-[1.15fr_1.25fr] lg:gap-14">
-            <Hero />
+          <div className="grid w-full max-w-6xl gap-12  lg:gap-14">
+          
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}

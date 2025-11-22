@@ -74,7 +74,28 @@ export function useMarkNotificationRead(userId: string | null | undefined) {
       if (!userId) throw new Error('로그인이 필요합니다.')
       await markNotificationRead(id, userId)
     },
-    onSuccess: () => {
+    // 낙관적 업데이트: 클릭 즉시 읽음 처리 반영
+    onMutate: async (id: number) => {
+      if (!userId) return
+      const queryKey = [NOTIFICATIONS_QUERY_KEY, userId] as const
+      await queryClient.cancelQueries({ queryKey })
+
+      const previous = queryClient.getQueryData<NotificationRecord[]>(queryKey)
+
+      if (previous) {
+        const next = previous.map((n) =>
+          n.id === id ? { ...n, readAt: new Date().toISOString() } : n,
+        )
+        queryClient.setQueryData(queryKey, next)
+      }
+
+      return { previous, queryKey }
+    },
+    onError: (_error, _id, context) => {
+      if (!context?.queryKey || !context.previous) return
+      queryClient.setQueryData(context.queryKey, context.previous)
+    },
+    onSettled: () => {
       if (!userId) return
       void queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_QUERY_KEY, userId] })
     },

@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, MouseEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format, parseISO, startOfWeek } from 'date-fns'
@@ -30,6 +30,7 @@ function DashboardPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [formResetKey, setFormResetKey] = useState(0)
   const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [activeInfoModal, setActiveInfoModal] = useState<'program' | 'score' | null>(null)
   const [now, setNow] = useState(() => new Date())
 
   const weeklyLogsData = weeklyLogs ?? []
@@ -180,10 +181,15 @@ function DashboardPage() {
       <DecorativeBackground />
 
       <div className="relative z-10 flex min-h-screen flex-col">
-        <Header displayName={profile?.full_name ?? '챌린저'} onSignOut={signOut} />
+        <Header
+          displayName={profile?.full_name ?? '챌린저'}
+          onSignOut={signOut}
+          onShowProgramInfo={() => setActiveInfoModal('program')}
+          onShowScoreInfo={() => setActiveInfoModal('score')}
+        />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
           <div className="grid w-full max-w-6xl gap-12 lg:gap-14">
-            {/* <Hero /> */}
+            
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}
@@ -215,6 +221,15 @@ function DashboardPage() {
         </main>
         <Footer />
       </div>
+
+      {activeInfoModal !== null ? (
+        <InfoModal
+          type={activeInfoModal}
+          onClose={() => {
+            setActiveInfoModal(null)
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -332,9 +347,11 @@ function ChallengeSettingsCard({ isLoading, settings, onSave, errorMessage }: Ch
 type HeaderProps = {
   displayName: string
   onSignOut: () => Promise<void>
+  onShowProgramInfo: () => void
+  onShowScoreInfo: () => void
 }
 
-function Header({ displayName, onSignOut }: HeaderProps) {
+function Header({ displayName, onSignOut, onShowProgramInfo, onShowScoreInfo }: HeaderProps) {
   return (
     <header className="flex items-center justify-between px-6 py-6 lg:px-10">
       <div className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.35rem] text-slate-300 transition-colors hover:border-white/30 hover:text-white">
@@ -342,12 +359,20 @@ function Header({ displayName, onSignOut }: HeaderProps) {
         LIVE
       </div>
       <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-        <a href="#" className="transition hover:text-white">
+        <button
+          type="button"
+          onClick={onShowProgramInfo}
+          className="transition hover:text-white"
+        >
           프로그램 소개
-        </a>
-        <a href="#" className="transition hover:text-white">
+        </button>
+        <button
+          type="button"
+          onClick={onShowScoreInfo}
+          className="transition hover:text-white"
+        >
           점수 시스템
-        </a>
+        </button>
         <Link to="/community" className="transition hover:text-white">
           커뮤니티
         </Link>
@@ -413,6 +438,80 @@ function Hero() {
       </div>
 
     </section>
+  )
+}
+
+type InfoModalProps = {
+  type: 'program' | 'score'
+  onClose: () => void
+}
+
+function InfoModal({ type, onClose }: InfoModalProps) {
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose()
+    }
+  }
+
+  const title = type === 'program' ? '프로그램 소개' : '점수 시스템'
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-md"
+      onClick={handleBackdropClick}
+    >
+      <section className="glass relative w-full max-w-2xl rounded-[2rem] border border-white/15 bg-night/90 p-8 text-sm text-slate-200 shadow-[0_40px_120px_rgba(0,0,0,0.8)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-5 top-5 text-xs uppercase tracking-[0.35rem] text-slate-500 transition hover:text-white"
+        >
+          닫기
+        </button>
+        <h2 className="mb-4 font-display text-2xl text-white">{title}</h2>
+
+        {type === 'program' ? (
+          <div className="space-y-3 leading-relaxed">
+            <p>
+              이 프로그램은 인바디(InBody) 또는 동일 BIA 기기를 활용한
+              <span className="font-semibold text-white"> 정량적인 체지방 관리</span>를 목표로 합니다. 시작일과 종료일에
+              동일 조건으로 측정한 결과지를 기준으로 공정한 랭킹을 산정합니다.
+            </p>
+            <p>
+              <span className="font-semibold text-white">주 1회 인증</span>을 통해 체중·체지방·인증 사진을 기록하고,
+              성실한 참여를 유도합니다. 인증 누락 시 경고가 누적되며, 3회 누적 시 중도 포기로 간주됩니다.
+            </p>
+            <p>
+              모든 데이터는 개인별 계정에 안전하게 저장되며, 대시보드에서
+              <span className="font-semibold text-white"> 시간 경과에 따른 변화</span>를 직관적으로 확인할 수 있습니다.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4 leading-relaxed">
+            <p>
+              최종 점수는 <span className="font-semibold text-white">체지방률 변화율 90점 + 출석 10점</span>을
+              합산해 산정됩니다. 여성 참가자의 경우 체지방 감량률에 <span className="font-semibold text-white">+0.5%</span>{' '}
+              가산점이 적용됩니다.
+            </p>
+            <ul className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-300">
+              <li>
+                <span className="font-semibold text-white">① 체지방률 변화율 (90점)</span> –{' '}
+                (시작 체지방률 − 최종 체지방률) / 시작 체지방률 × 100
+              </li>
+              <li>
+                <span className="font-semibold text-white">② 출석/참여 (10점)</span> – 매주 1회 인증을 기준으로 가산·감점
+              </li>
+              <li>
+                <span className="font-semibold text-white">③ 중도 포기</span> – 경고 3회 또는 필수 인바디 미제출 시 실격
+              </li>
+            </ul>
+            <p className="text-xs text-slate-400">
+              실제 랭킹과 시상 규칙은 운영 정책에 따라 일부 조정될 수 있으며, 변경 시 사전 공지 후 적용됩니다.
+            </p>
+          </div>
+        )}
+      </section>
+    </div>
   )
 }
 

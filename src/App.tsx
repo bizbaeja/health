@@ -7,6 +7,7 @@ import CommunityNewPage from '@/pages/community/CommunityNewPage.tsx'
 import CommunityPostPage from '@/pages/community/CommunityPostPage.tsx'
 import AuthPage from '@/pages/AuthPage'
 import OnboardingPage from '@/pages/OnboardingPage'
+import { useOnboardingStatus } from '@/hooks/useOnboardingStatus'
 
 function App() {
   return (
@@ -84,13 +85,19 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 function RequireOnboardingComplete({ children }: { children: ReactNode }) {
-  const { profile, loading } = useAuth()
+  const { user, loading } = useAuth()
+  const userId = user?.id ?? null
+  const { data: onboarded, isLoading } = useOnboardingStatus(userId)
 
-  if (loading) {
+  if (loading || isLoading) {
     return <FullScreenLoader message="프로필을 불러오는 중..." />
   }
 
-  if (!profile || !profile.onboarding_completed) {
+  if (!userId) {
+    return <Navigate to="/auth" replace />
+  }
+
+  if (!onboarded) {
     return <Navigate to="/onboarding" replace />
   }
 

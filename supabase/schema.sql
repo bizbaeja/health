@@ -278,6 +278,84 @@ create policy "comment_likes_delete_own"
     on public.comment_likes for delete
     using (auth.uid() = user_id);
 
+-- 알림: 본인 글에 새로운 댓글이 달렸을 때 등 이벤트 저장
+do $$
+begin
+  if not exists (
+    select 1 from pg_type where typname = 'notification_type'
+  ) then
+    create type public.notification_type as enum ('comment_on_post');
+  end if;
+end $$;
+
+create table if not exists public.notifications (
+    id bigserial primary key,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    type notification_type not null,
+    data jsonb not null,
+    read_at timestamptz,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_user_id_idx on public.notifications (user_id);
+create index if not exists notifications_created_at_idx on public.notifications (created_at desc);
+
+alter table public.notifications enable row level security;
+
+create policy "notifications_select_own"
+    on public.notifications for select
+    using (auth.uid() = user_id);
+
+create policy "notifications_insert_own"
+    on public.notifications for insert
+    with check (auth.uid() = user_id);
+
+create policy "notifications_update_own"
+    on public.notifications for update
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+-- 댓글 작성 시, 게시글 작성자에게 알림 생성
+create or replace function public.create_comment_notification()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  post_owner uuid;
+  commenter_name text;
+begin
+  select user_id into post_owner from public.posts where id = new.post_id;
+
+  -- 자기 글에 자기 댓글이면 알림 생략
+  if post_owner is null or post_owner = new.user_id then
+    return new;
+  end if;
+
+  select full_name into commenter_name from public.profiles where id = new.user_id;
+
+  insert into public.notifications (user_id, type, data)
+  values (
+    post_owner,
+    'comment_on_post',
+    jsonb_build_object(
+      'post_id', new.post_id,
+      'comment_id', new.id,
+      'comment_preview', left(new.content, 80),
+      'commenter_name', coalesce(commenter_name, '익명'),
+      'created_at', now()
+    )
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists comments_create_notification_trigger on public.comments;
+create trigger comments_create_notification_trigger
+after insert on public.comments
+for each row execute function public.create_comment_notification();
+
 -- 커뮤니티 media storage 정책
 create policy "community_media_select_own"
     on storage.objects for select

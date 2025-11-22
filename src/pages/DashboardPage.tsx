@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/providers/AuthProvider'
 import { useCreateWeeklyLog, useWeeklyLogs, type WeeklyLogInput, type WeeklyLogRecord } from '@/hooks/useWeeklyLogs'
 import { useChallengeSettings, useUpsertChallengeSettings } from '@/hooks/useChallengeSettings'
+import { useNotifications, useMarkNotificationRead, type NotificationRecord } from '@/hooks/useNotifications'
 
 const WEEKS_IN_CHALLENGE = 4
 
@@ -26,6 +27,8 @@ function DashboardPage() {
   const createLogMutation = useCreateWeeklyLog(userId)
   const { data: challengeSettings, isLoading: challengeSettingsLoading } = useChallengeSettings(userId)
   const upsertChallengeSettingsMutation = useUpsertChallengeSettings(userId)
+  const { data: notifications = [] } = useNotifications(userId)
+  const markNotificationReadMutation = useMarkNotificationRead(userId)
 
   const [formError, setFormError] = useState<string | null>(null)
   const [formResetKey, setFormResetKey] = useState(0)
@@ -34,6 +37,11 @@ function DashboardPage() {
   const [now, setNow] = useState(() => new Date())
 
   const weeklyLogsData = weeklyLogs ?? []
+  const unreadNotificationCount = notifications.filter((n) => n.readAt == null).length
+
+  const handleNotificationClick = (id: number) => {
+    markNotificationReadMutation.mutate(id)
+  }
   const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const hasThisWeekLog = weeklyLogsData.some((log) => log.weekStart === currentWeekStart)
 
@@ -186,10 +194,13 @@ function DashboardPage() {
           onSignOut={signOut}
           onShowProgramInfo={() => setActiveInfoModal('program')}
           onShowScoreInfo={() => setActiveInfoModal('score')}
+          notifications={notifications}
+          unreadCount={unreadNotificationCount}
+          onNotificationClick={handleNotificationClick}
         />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-6 lg:px-10 xl:px-20">
-          <div className="grid w-full max-w-6xl gap-12 lg:gap-14">
-            
+          <div className="grid w-full max-w-6xl gap-12 lg:grid-cols-[1.15fr_1.25fr] lg:gap-14">
+            <Hero />
             <div className="flex flex-col gap-8">
               <MetricPanel
                 progressDegrees={progressDegrees}
@@ -349,9 +360,22 @@ type HeaderProps = {
   onSignOut: () => Promise<void>
   onShowProgramInfo: () => void
   onShowScoreInfo: () => void
+  notifications: NotificationRecord[]
+  unreadCount: number
+  onNotificationClick: (id: number) => void
 }
 
-function Header({ displayName, onSignOut, onShowProgramInfo, onShowScoreInfo }: HeaderProps) {
+function Header({
+  displayName,
+  onSignOut,
+  onShowProgramInfo,
+  onShowScoreInfo,
+  notifications,
+  unreadCount,
+  onNotificationClick,
+}: HeaderProps) {
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+
   return (
     <header className="flex items-center justify-between px-6 py-6 lg:px-10">
       <div className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.35rem] text-slate-300 transition-colors hover:border-white/30 hover:text-white">
@@ -378,6 +402,63 @@ function Header({ displayName, onSignOut, onShowProgramInfo, onShowScoreInfo }: 
         </Link>
       </nav>
       <div className="flex items-center gap-3">
+        <div className="relative">
+          <button
+            type="button"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:border-white/30 hover:text-white"
+            onClick={() => setIsNotificationOpen((prev) => !prev)}
+          >
+            <span className="text-lg leading-none">🔔</span>
+            {unreadCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            ) : null}
+          </button>
+
+          {isNotificationOpen ? (
+            <div className="absolute right-0 z-20 mt-3 w-80 rounded-2xl border border-white/10 bg-night/95 p-3 text-xs shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
+              <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.35rem] text-slate-500">
+                <span>알림</span>
+                <span>{notifications.length} 개</span>
+              </div>
+              <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                {notifications.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-3 text-[11px] text-slate-500">
+                    아직 알림이 없습니다.
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => onNotificationClick(notification.id)}
+                      className={`flex w-full flex-col gap-1 rounded-xl border px-3 py-2 text-left ${
+                        notification.readAt
+                          ? 'border-white/10 bg-white/5 text-slate-400'
+                          : 'border-brand/40 bg-brand/10 text-slate-100'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-slate-200">
+                        {notification.type === 'comment_on_post'
+                          ? `${notification.data.commenter_name ?? '누군가'} 님이 내 글에 댓글을 남겼습니다.`
+                          : '새 알림'}
+                      </span>
+                      {notification.data.comment_preview ? (
+                        <span className="line-clamp-2 text-[11px] text-slate-400">
+                          {notification.data.comment_preview}
+                        </span>
+                      ) : null}
+                      <span className="text-[10px] text-slate-500">
+                        {format(new Date(notification.createdAt), 'MM.dd HH:mm')}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
         <Link
           to="/community"
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-slate-300 transition hover:border-white/30 hover:text-white"

@@ -143,11 +143,11 @@ function CommunityPostPage() {
               </div>
               <h1 className="font-display text-3xl text-white sm:text-4xl">{post.title}</h1>
               <div className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.35rem] text-slate-500">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {post.authorAvatarUrl ? (
-                    <img src={post.authorAvatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                    <img src={post.authorAvatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
                   ) : (
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/30 text-[10px] text-white">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/30 text-sm font-medium text-white">
                       {(post.authorName ?? '?').charAt(0).toUpperCase()}
                     </span>
                   )}
@@ -360,9 +360,9 @@ function CommentItem({
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {comment.authorAvatarUrl ? (
-              <img src={comment.authorAvatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+              <img src={comment.authorAvatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
             ) : (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/30 text-[10px] text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/30 text-xs font-medium text-white">
                 {(comment.authorName ?? '?').charAt(0).toUpperCase()}
               </span>
             )}

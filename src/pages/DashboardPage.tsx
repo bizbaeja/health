@@ -47,8 +47,6 @@ function DashboardPage() {
   const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const hasThisWeekLog = weeklyLogsData.some((log) => log.weekStart === currentWeekStart)
 
-  console.log('[DEBUG] user.id =', user?.id)
-  console.log('[DEBUG] profile =', profile)
   useEffect(() => {
     const id = window.setInterval(() => {
       setNow(new Date())

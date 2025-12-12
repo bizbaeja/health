@@ -43,33 +43,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error, status } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    console.log('[AuthProvider] fetchProfile start:', userId)
 
-    if (error && status !== 406) {
-      console.error('[AuthProvider] profile fetch error', error)
-      setProfile(null)
-      return null
-    }
+    // 타임아웃 Promise
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+    )
 
-    if (!data) {
-      const { data: inserted, error: insertError } = await supabase
-        .from('profiles')
-        .insert({ id: userId })
-        .select('*')
-        .single()
+    try {
+      const result = await Promise.race([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        timeout,
+      ])
 
-      if (insertError) {
-        console.error('[AuthProvider] profile auto-create error', insertError)
+      const { data, error, status } = result
+      console.log('[AuthProvider] fetchProfile result:', { data, error, status })
+
+      if (error && status !== 406) {
+        console.error('[AuthProvider] profile fetch error', error)
         setProfile(null)
         return null
       }
 
-      setProfile(inserted as Profile)
-      return inserted as Profile
-    }
+      if (!data) {
+        console.log('[AuthProvider] no profile, creating...')
+        const { data: inserted, error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: userId })
+          .select('*')
+          .single()
 
-    setProfile(data as Profile)
-    return data as Profile
+        if (insertError) {
+          console.error('[AuthProvider] profile auto-create error', insertError)
+          setProfile(null)
+          return null
+        }
+
+        console.log('[AuthProvider] profile created:', inserted)
+        setProfile(inserted as Profile)
+        return inserted as Profile
+      }
+
+      console.log('[AuthProvider] profile loaded:', data)
+      setProfile(data as Profile)
+      return data as Profile
+    } catch (err) {
+      console.error('[AuthProvider] fetchProfile error:', err)
+      setProfile(null)
+      return null
+    }
   }, [])
 
   const refreshProfile = useCallback(async () => {
@@ -86,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, 5000)
 
     const getInitialSession = async () => {
+      console.log('[AuthProvider] getInitialSession start')
       setLoading(true)
       try {
         const {
@@ -93,7 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error,
         } = await supabase.auth.getSession()
 
+        console.log('[AuthProvider] getSession result:', { hasSession: !!initialSession, error })
+
         if (!mounted) {
+          console.log('[AuthProvider] unmounted, skipping')
           return
         }
 
@@ -105,18 +131,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!initialSession) {
+          console.log('[AuthProvider] no session found')
           clearSession()
           return
         }
 
+        console.log('[AuthProvider] session found, fetching profile for:', initialSession.user.id)
         setSession(initialSession)
         await fetchProfile(initialSession.user.id)
+        console.log('[AuthProvider] profile fetched successfully')
       } catch (error) {
         console.error('[AuthProvider] unexpected session error', error)
         clearSession()
         await supabase.auth.signOut()
       } finally {
         if (mounted) {
+          console.log('[AuthProvider] setLoading(false)')
           setLoading(false)
         }
       }
@@ -124,22 +154,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void getInitialSession()
 
+    let currentUserId: string | null = null
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setLoading(true)
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('[AuthProvider] onAuthStateChange:', event, newSession?.user?.id)
+
+      // INITIAL_SESSION은 getInitialSession에서 이미 처리됨
+      if (event === 'INITIAL_SESSION') {
+        return
+      }
+
+      // 같은 유저면 무시 (중복 호출 방지)
+      if (newSession?.user?.id === currentUserId) {
+        console.log('[AuthProvider] same user, skipping')
+        return
+      }
+
+      currentUserId = newSession?.user?.id ?? null
       setSession(newSession)
-      try {
-        if (newSession?.user) {
+
+      if (newSession?.user) {
+        setLoading(true)
+        try {
           await fetchProfile(newSession.user.id)
-        } else {
-          clearSession()
+        } catch (error) {
+          console.error('[AuthProvider] onAuthStateChange error', error)
+        } finally {
+          setLoading(false)
         }
-      } catch (error) {
-        console.error('[AuthProvider] onAuthStateChange error', error)
+      } else {
         clearSession()
-      } finally {
-        setLoading(false)
       }
     })
 

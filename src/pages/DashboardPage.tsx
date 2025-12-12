@@ -16,11 +16,12 @@ import { useAuth } from '@/providers/AuthProvider'
 import { useCreateWeeklyLog, useWeeklyLogs, type WeeklyLogInput, type WeeklyLogRecord } from '@/hooks/useWeeklyLogs'
 import { useChallengeSettings, useUpsertChallengeSettings } from '@/hooks/useChallengeSettings'
 import { useNotifications, useMarkNotificationRead, type NotificationRecord } from '@/hooks/useNotifications'
+import { useUpdateProfile } from '@/hooks/useProfile'
 
 const WEEKS_IN_CHALLENGE = 4
 
 function DashboardPage() {
-  const { profile, user, signOut } = useAuth()
+  const { profile, user, signOut, refreshProfile } = useAuth()
   const userId = user?.id ?? null
 
   const { data: weeklyLogs, isLoading: weeklyLogsLoading } = useWeeklyLogs(userId)
@@ -34,6 +35,7 @@ function DashboardPage() {
   const [formResetKey, setFormResetKey] = useState(0)
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [activeInfoModal, setActiveInfoModal] = useState<'program' | 'score' | null>(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [now, setNow] = useState(() => new Date())
 
   const weeklyLogsData = weeklyLogs ?? []
@@ -191,9 +193,11 @@ function DashboardPage() {
       <div className="relative z-10 flex min-h-screen flex-col">
         <Header
           displayName={profile?.full_name ?? '챌린저'}
+          avatarUrl={profile?.avatar_url ?? null}
           onSignOut={signOut}
           onShowProgramInfo={() => setActiveInfoModal('program')}
           onShowScoreInfo={() => setActiveInfoModal('score')}
+          onEditProfile={() => setShowProfileModal(true)}
           notifications={notifications}
           unreadCount={unreadNotificationCount}
           onNotificationClick={handleNotificationClick}
@@ -239,6 +243,14 @@ function DashboardPage() {
           onClose={() => {
             setActiveInfoModal(null)
           }}
+        />
+      ) : null}
+
+      {showProfileModal ? (
+        <ProfileEditModal
+          currentName={profile?.full_name ?? ''}
+          currentAvatarUrl={profile?.avatar_url ?? null}
+          onClose={() => setShowProfileModal(false)}
         />
       ) : null}
     </div>
@@ -357,9 +369,11 @@ function ChallengeSettingsCard({ isLoading, settings, onSave, errorMessage }: Ch
 
 type HeaderProps = {
   displayName: string
+  avatarUrl: string | null
   onSignOut: () => Promise<void>
   onShowProgramInfo: () => void
   onShowScoreInfo: () => void
+  onEditProfile: () => void
   notifications: NotificationRecord[]
   unreadCount: number
   onNotificationClick: (id: number) => void
@@ -367,9 +381,11 @@ type HeaderProps = {
 
 function Header({
   displayName,
+  avatarUrl,
   onSignOut,
   onShowProgramInfo,
   onShowScoreInfo,
+  onEditProfile,
   notifications,
   unreadCount,
   onNotificationClick,
@@ -397,9 +413,7 @@ function Header({
         >
           점수 시스템
         </button>
-        {/* <Link to="/community" className="transition hover:text-white">
-          커뮤니티
-        </Link> */}
+     
       </nav>
       <div className="flex items-center gap-3">
         <div className="relative">
@@ -465,9 +479,20 @@ function Header({
         >
           커뮤니티
         </Link>
-        <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-slate-400 lg:flex">
+        <button
+          type="button"
+          onClick={onEditProfile}
+          className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs uppercase tracking-[0.35rem] text-slate-400 transition hover:border-white/30 hover:text-white lg:flex"
+        >
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/30 text-[10px] text-white">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+          )}
           {displayName}
-        </div>
+        </button>
         <button
           className="relative overflow-hidden rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/90 transition hover:border-white/40 hover:text-white"
           onClick={() => {
@@ -1084,6 +1109,135 @@ function getDurationParts(ms: number) {
 
 function pad2(value: number) {
   return value.toString().padStart(2, '0')
+}
+
+type ProfileEditModalProps = {
+  currentName: string
+  currentAvatarUrl: string | null
+  onClose: () => void
+}
+
+function ProfileEditModal({ currentName, currentAvatarUrl, onClose }: ProfileEditModalProps) {
+  const { user, refreshProfile } = useAuth()
+  const userId = user?.id ?? null
+  const updateProfileMutation = useUpdateProfile(userId, async () => {
+    await refreshProfile()
+    onClose()
+  })
+
+  const [name, setName] = useState(currentName)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(currentAvatarUrl)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(
+    () => () => {
+      if (previewUrl && previewUrl !== currentAvatarUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    },
+    [previewUrl, currentAvatarUrl],
+  )
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    setSelectedFile(file)
+    if (previewUrl && previewUrl !== currentAvatarUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+    setPreviewUrl(file ? URL.createObjectURL(file) : currentAvatarUrl)
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError(null)
+
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+
+    try {
+      await updateProfileMutation.mutateAsync({
+        fullName: trimmedName,
+        avatarFile: selectedFile,
+      })
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('프로필 저장에 실패했습니다.')
+      }
+    }
+  }
+
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose()
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-md"
+      onClick={handleBackdropClick}
+    >
+      <section className="glass relative w-full max-w-md rounded-[2rem] border border-white/15 bg-night/90 p-8 text-sm text-slate-200 shadow-[0_40px_120px_rgba(0,0,0,0.8)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-5 top-5 text-xs uppercase tracking-[0.35rem] text-slate-500 transition hover:text-white"
+        >
+          닫기
+        </button>
+        <h2 className="mb-6 font-display text-2xl text-white">프로필 수정</h2>
+
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              {previewUrl ? (
+                <img src={previewUrl} alt="프로필" className="h-24 w-24 rounded-full object-cover border-2 border-white/20" />
+              ) : (
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brand/30 text-3xl font-semibold text-white border-2 border-white/20">
+                  {name.charAt(0).toUpperCase() || '?'}
+                </div>
+              )}
+              <label className="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-brand text-white shadow-lg transition hover:bg-indigo-400">
+                <span className="text-sm">+</span>
+                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              </label>
+            </div>
+            <p className="text-xs text-slate-500">클릭하여 프로필 사진 변경</p>
+          </div>
+
+          <label className="flex flex-col gap-2 text-sm text-slate-300">
+            이름
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder="이름 또는 닉네임"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-brand focus:shadow-glow"
+            />
+          </label>
+
+          {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+
+          <button
+            type="submit"
+            disabled={updateProfileMutation.isPending}
+            className="w-full glass relative overflow-hidden rounded-2xl bg-brand/80 px-6 py-3 text-sm font-semibold uppercase tracking-[0.35rem] text-brand-foreground shadow-brand/30 transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 hover:opacity-100">
+              <span className="shimmer absolute inset-0" />
+            </span>
+            {updateProfileMutation.isPending ? '저장 중...' : '저장'}
+          </button>
+        </form>
+      </section>
+    </div>
+  )
 }
 
 export default DashboardPage

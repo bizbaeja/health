@@ -2,6 +2,7 @@
 create table if not exists public.profiles (
     id uuid primary key references auth.users (id) on delete cascade,
     full_name text,
+    avatar_url text,
     gender text check (gender in ('male', 'female')),
     height_cm numeric(5, 2),
     weight_kg numeric(5, 2),
@@ -377,6 +378,38 @@ create policy "community_media_delete_own"
     on storage.objects for delete
     using (
         bucket_id = 'community-media'
+        and auth.role() = 'authenticated'
+        and split_part(name, '/', 1) = auth.uid()::text
+    );
+
+-- 프로필 아바타 storage 정책
+create policy "avatars_select_public"
+    on storage.objects for select
+    using (
+        bucket_id = 'avatars'
+        and auth.role() = 'authenticated'
+    );
+
+create policy "avatars_insert_own"
+    on storage.objects for insert
+    with check (
+        bucket_id = 'avatars'
+        and auth.role() = 'authenticated'
+        and split_part(name, '/', 1) = auth.uid()::text
+    );
+
+create policy "avatars_update_own"
+    on storage.objects for update
+    using (
+        bucket_id = 'avatars'
+        and auth.role() = 'authenticated'
+        and split_part(name, '/', 1) = auth.uid()::text
+    );
+
+create policy "avatars_delete_own"
+    on storage.objects for delete
+    using (
+        bucket_id = 'avatars'
         and auth.role() = 'authenticated'
         and split_part(name, '/', 1) = auth.uid()::text
     );

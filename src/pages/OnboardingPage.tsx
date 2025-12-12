@@ -76,10 +76,17 @@ function OnboardingPage() {
       return
     }
 
+    const trimmedName = form.fullName.trim()
+    if (!trimmedName) {
+      setError('이름을 입력해주세요.')
+      setPending(false)
+      return
+    }
+
     const { error: upsertError } = await supabase.from('profiles').upsert(
       {
         id: user.id,
-        full_name: form.fullName.trim() || null,
+        full_name: trimmedName,
         gender: form.gender || null,
         height_cm: height,
         weight_kg: weight,

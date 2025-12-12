@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabaseClient'
 type Profile = {
   id: string
   full_name: string | null
+  avatar_url: string | null
   gender: 'male' | 'female' | null
   height_cm: number | null
   weight_kg: number | null

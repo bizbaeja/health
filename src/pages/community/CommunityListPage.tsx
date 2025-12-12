@@ -139,7 +139,16 @@ function PostCard({ post, onToggleLike, likeLoading }: PostCardProps) {
   return (
     <article className="flex flex-col gap-4 rounded-[2.5rem] border border-white/10 bg-white/5 p-6 shadow-[0_30px_80px_rgba(5,1,15,0.45)] transition hover:border-white/20">
       <div className="flex items-center justify-between text-xs uppercase tracking-[0.35rem] text-slate-500">
-        <span>{post.authorName ?? '익명'}</span>
+        <div className="flex items-center gap-2">
+          {post.authorAvatarUrl ? (
+            <img src={post.authorAvatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/30 text-[10px] text-white">
+              {(post.authorName ?? '?').charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span>{post.authorName ?? '익명'}</span>
+        </div>
         <span>{timeAgo}</span>
       </div>
       <Link to={`/community/${post.id}`} className="space-y-3">

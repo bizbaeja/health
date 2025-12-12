@@ -12,6 +12,7 @@ export type CommentRecord = {
   createdAt: string
   updatedAt: string
   authorName: string | null
+  authorAvatarUrl: string | null
   likeCount: number
   likedByUser: boolean
   isMine: boolean
@@ -43,7 +44,7 @@ type CommentRow = {
   content: string
   created_at: string
   updated_at: string
-  author: { full_name: string | null } | { full_name: string | null }[] | null
+  author: { full_name: string | null; avatar_url: string | null } | { full_name: string | null; avatar_url: string | null }[] | null
   comment_likes: { count: number }[] | null
 }
 
@@ -59,7 +60,7 @@ async function fetchComments(postId: number, currentUserId: string): Promise<Com
         content,
         created_at,
         updated_at,
-        author:profiles (full_name),
+        author:profiles (full_name, avatar_url),
         comment_likes(count)
       `,
     )
@@ -105,11 +106,12 @@ async function fetchComments(postId: number, currentUserId: string): Promise<Com
 
     const author =
       row.author && !Array.isArray(row.author)
-        ? (row.author as { full_name: string | null })
+        ? (row.author as { full_name: string | null; avatar_url: string | null })
         : Array.isArray(row.author) && row.author.length > 0
-          ? (row.author[0] as { full_name: string | null })
+          ? (row.author[0] as { full_name: string | null; avatar_url: string | null })
           : null
     const authorName = author?.full_name ?? null
+    const authorAvatarUrl = author?.avatar_url ?? null
 
     const comment: CommentRecord = {
       id,
@@ -120,6 +122,7 @@ async function fetchComments(postId: number, currentUserId: string): Promise<Com
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       authorName,
+      authorAvatarUrl,
       likeCount,
       likedByUser: likedSet.has(id),
       isMine: row.user_id === currentUserId,

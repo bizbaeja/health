@@ -15,6 +15,7 @@ export type PostSummary = {
   createdAt: string
   updatedAt: string
   authorName: string | null
+  authorAvatarUrl: string | null
   likeCount: number
   likedByUser: boolean
 }
@@ -40,7 +41,7 @@ async function fetchPosts({ userId, category }: FetchPostsOptions): Promise<Post
         media_urls,
         created_at,
         updated_at,
-        author:profiles (full_name),
+        author:profiles (full_name, avatar_url),
         post_likes(count)
       `,
     )
@@ -77,11 +78,12 @@ async function fetchPosts({ userId, category }: FetchPostsOptions): Promise<Post
       const likeCount = Array.isArray(post.post_likes) && post.post_likes.length > 0 ? post.post_likes[0].count ?? 0 : 0
       const author =
         post.author && !Array.isArray(post.author)
-          ? (post.author as { full_name?: string | null })
+          ? (post.author as { full_name?: string | null; avatar_url?: string | null })
           : Array.isArray(post.author) && post.author.length > 0
-            ? (post.author[0] as { full_name?: string | null })
+            ? (post.author[0] as { full_name?: string | null; avatar_url?: string | null })
             : null
       const authorName = author?.full_name ?? null
+      const authorAvatarUrl = author?.avatar_url ?? null
 
       return {
         id: post.id,
@@ -93,6 +95,7 @@ async function fetchPosts({ userId, category }: FetchPostsOptions): Promise<Post
         createdAt: post.created_at,
         updatedAt: post.updated_at,
         authorName,
+        authorAvatarUrl,
         likeCount,
         likedByUser: likedSet.has(post.id),
       }
@@ -114,7 +117,7 @@ async function fetchPost(userId: string, postId: number): Promise<PostSummary | 
           media_urls,
           created_at,
           updated_at,
-          author:profiles (full_name),
+          author:profiles (full_name, avatar_url),
           post_likes(count)
         `,
       )
@@ -142,11 +145,12 @@ async function fetchPost(userId: string, postId: number): Promise<PostSummary | 
   const likeCount = Array.isArray(data.post_likes) && data.post_likes.length > 0 ? data.post_likes[0].count ?? 0 : 0
   const author =
     data.author && !Array.isArray(data.author)
-      ? (data.author as { full_name?: string | null })
+      ? (data.author as { full_name?: string | null; avatar_url?: string | null })
       : Array.isArray(data.author) && data.author.length > 0
-        ? (data.author[0] as { full_name?: string | null })
+        ? (data.author[0] as { full_name?: string | null; avatar_url?: string | null })
         : null
   const authorName = author?.full_name ?? null
+  const authorAvatarUrl = author?.avatar_url ?? null
 
   return {
     id: data.id,
@@ -158,6 +162,7 @@ async function fetchPost(userId: string, postId: number): Promise<PostSummary | 
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     authorName,
+    authorAvatarUrl,
     likeCount,
     likedByUser: Boolean(likedResult.data),
   }

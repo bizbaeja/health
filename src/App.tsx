@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from '@/providers/AuthProvider'
 import DashboardPage from '@/pages/DashboardPage'
+import AdminDashboardPage from '@/pages/AdminDashboardPage'
 import CommunityListPage from '@/pages/community/CommunityListPage.tsx'
 import CommunityNewPage from '@/pages/community/CommunityNewPage.tsx'
 import CommunityPostPage from '@/pages/community/CommunityPostPage.tsx'
@@ -60,6 +61,14 @@ function App() {
                 <RequireOnboardingComplete>
                   <CommunityPostPage />
                 </RequireOnboardingComplete>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth>
+                <AdminDashboardPage />
               </RequireAuth>
             }
           />

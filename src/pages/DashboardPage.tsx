@@ -17,6 +17,7 @@ import { useCreateWeeklyLog, useWeeklyLogs, type WeeklyLogInput, type WeeklyLogR
 import { useChallengeSettings, useUpsertChallengeSettings } from '@/hooks/useChallengeSettings'
 import { useNotifications, useMarkNotificationRead, type NotificationRecord } from '@/hooks/useNotifications'
 import { useUpdateProfile } from '@/hooks/useProfile'
+import { isAdmin } from '@/hooks/useAdminData'
 
 const WEEKS_IN_CHALLENGE = 4
 
@@ -192,6 +193,7 @@ function DashboardPage() {
         <Header
           displayName={profile?.full_name ?? '챌린저'}
           avatarUrl={profile?.avatar_url ?? null}
+          userId={userId}
           onSignOut={signOut}
           onShowProgramInfo={() => setActiveInfoModal('program')}
           onShowScoreInfo={() => setActiveInfoModal('score')}
@@ -368,6 +370,7 @@ function ChallengeSettingsCard({ isLoading, settings, onSave, errorMessage }: Ch
 type HeaderProps = {
   displayName: string
   avatarUrl: string | null
+  userId: string | null
   onSignOut: () => Promise<void>
   onShowProgramInfo: () => void
   onShowScoreInfo: () => void
@@ -380,6 +383,7 @@ type HeaderProps = {
 function Header({
   displayName,
   avatarUrl,
+  userId,
   onSignOut,
   onShowProgramInfo,
   onShowScoreInfo,
@@ -477,6 +481,14 @@ function Header({
         >
           커뮤니티
         </Link>
+        {isAdmin(userId) ? (
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-xs uppercase tracking-[0.35rem] text-amber-200 transition hover:border-amber-400/60 hover:text-amber-100"
+          >
+            관리자
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={onEditProfile}
